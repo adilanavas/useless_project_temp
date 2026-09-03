@@ -30,7 +30,7 @@ Pick a Kerala banana variety, measure an object, and Pazham Meter tells you exac
 ### Technologies/Components Used
 For Software:
 -  HTML5, CSS3, JavaScript 
--  Tailwind CSS, Google Fonts
+-  Tailwind CSS, Google Fonts, Canvas 
 
 ### Implementation
 For Software:
@@ -44,37 +44,21 @@ For Software:
 For Software:
 
 # Screenshots (Add at least 3)
-![Screenshot1](Add screenshot 1 here with proper name)
-*Add caption explaining what this shows*
+![Home Page](p1%20%281%29.jpeg)
 
-![Screenshot2](Add screenshot 2 here with proper name)
-*Add caption explaining what this shows*
+![Measurement Screen](p1%20%283%29.jpeg)
 
-![Screenshot3](Add screenshot 3 here with proper name)
-*Add caption explaining what this shows*
+![Result Screen](p1%20%284%29.jpeg)
+
+![Monuments](p1%20%282%29.jpeg)
+
+![Reference Selection](p1%20%285%29.jpeg)
+
+![Fun Facts](p1%20%287%29.jpeg)
 
 # Diagrams
 ![Workflow](Add your workflow/architecture diagram here)
 *Add caption explaining your workflow*
-
-For Hardware:
-
-# Schematic & Circuit
-![Circuit](Add your circuit diagram here)
-*Add caption explaining connections*
-
-![Schematic](Add your schematic diagram here)
-*Add caption explaining the schematic*
-
-# Build Photos
-![Components](Add photo of your components here)
-*List out all components shown*
-
-![Build](Add photos of build process here)
-*Explain the build steps*
-
-![Final](Add photo of final product here)
-*Explain the final build*
 
 ### Project Demo
 # Video
