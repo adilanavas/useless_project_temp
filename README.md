@@ -2,39 +2,35 @@
 
 
 
-# [Project Name] 🎯
+# Pazham Meter 🎯
 
 
 ## Basic Details
-### Team Name: [Name]
+### Team Name: Idly & Sambar
 
 
 ### Team Members
-- Team Lead: [Name] - [College]
-- Member 2: [Name] - [College]
-- Member 3: [Name] - [College]
+- Member 1: Adila Navas - LBSITW
+- Member 3: Ahlam Anvarlal - LBSITW
 
 ### Project Description
-[2-3 lines about what your project does]
+Pazham Meter is a ridiculously serious attempt to answer one of life's most important questions: “How many pazhams long is this?”
+Choose your favourite Pazham, point your phone at an object, and let Pazham Meter turn ordinary measurements into the only unit that truly matters — pazham.
 
 ### The Problem (that doesn't exist)
-[What ridiculous problem are you solving?]
+For centuries, humans have been forced to measure things in boring units like centimetres and metres. Some people even measure in feet!
+But nobody has ever asked the more important question: “How many pazhams?”
+We decided this unacceptable situation needed to change.
 
 ### The Solution (that nobody asked for)
-[How are you solving it? Keep it fun!]
+Introducing Pazham Meter — a completely unnecessary but surprisingly useful banana-based measurement system. 
+Pick a Kerala banana variety, measure an object, and Pazham Meter tells you exactly how many pazhams long it is. Because why use 100 centimetres when you could say 20 Njalipoovans?
 
 ## Technical Details
 ### Technologies/Components Used
 For Software:
-- [Languages used]
-- [Frameworks used]
-- [Libraries used]
-- [Tools used]
-
-For Hardware:
-- [List main components]
-- [List specifications]
-- [List tools required]
+-  HTML5, CSS3, JavaScript 
+-  Tailwind CSS, Google Fonts
 
 ### Implementation
 For Software:
