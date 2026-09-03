@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#FFF8E9">
+<title>PAZHAM METER 🍌 measure anything in pazhams</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          banana:  { 100:'#FFF0C2', 300:'#FFE08A', 500:'#FFC53D', 600:'#F2A900', 700:'#C97F00' },
+          leaf:    { 900:'#132B1C', 700:'#1F4A2E', 500:'#2F6B41', 300:'#7BB489' },
+          coral:   { 500:'#FF6B57', 600:'#E44E39' },
+          fritter: { 500:'#D97706', 600:'#B45309' },
+          cream:   '#FFF8E9',
+          ink:     '#231A10'
+        },
+        fontFamily: {
+          display: ['Fredoka', 'sans-serif'],
+          body: ['"Space Grotesk"', 'sans-serif']
+        },
+        boxShadow: {
+          hard: '4px 4px 0 0 #231A10',
+          hardsm: '3px 3px 0 0 #231A10',
+          hardlg: '6px 6px 0 0 #231A10'
+        }
+      }
+    }
+  };
+</script>
+<style>
+  html, body { background:#FFF8E9; overscroll-behavior:none; }
+  body { font-family:'Space Grotesk', sans-serif; color:#231A10; touch-action:manipulation; position:relative; }
+  .font-display { font-family:'Fredoka', sans-serif; }
+  #stage-canvas { touch-action:none; display:block; }
+  .screen{ display:none; } .screen.active{ display:flex; }
+  .hard { border:2.5px solid #231A10; box-shadow:4px 4px 0 0 #231A10; }
+  .press:active { transform: translate(3px,3px); box-shadow:1px 1px 0 0 #231A10; }
+  .press { transition: transform .08s ease, box-shadow .08s ease; }
+  .bg-dots {
+    background-image: radial-gradient(rgba(35,26,16,0.10) 1.4px, transparent 1.4px);
+    background-size: 16px 16px;
+  }
+  .blob { position:absolute; border-radius:50%; filter: blur(2px); opacity:.55; animation: floatBlob 7s ease-in-out infinite; pointer-events:none; }
+  @keyframes floatBlob { 0%,100%{ transform:translateY(0) rotate(0deg);} 50%{ transform:translateY(-16px) rotate(6deg);} }
+  @keyframes wiggle { 0%,100%{ transform:rotate(-9deg);} 50%{ transform:rotate(9deg);} }
+  .wiggle { animation: wiggle 2.2s ease-in-out infinite; transform-origin: 60% 70%; }
+  @keyframes pop { 0%{ transform:scale(.6); opacity:0; } 65%{ transform:scale(1.08); opacity:1;} 100%{ transform:scale(1);} }
+  .pop { animation: pop .38s cubic-bezier(.34,1.56,.64,1) both; }
+  @keyframes fall {
+    0% { transform: translateY(-10px) rotate(0deg); opacity:1; }
+    100% { transform: translateY(340px) rotate(400deg); opacity:0; }
+  }
+  .confetti-piece { position:fixed; top:0; font-size:24px; pointer-events:none; z-index:90; animation: fall linear forwards; }
+  @keyframes ripple { 0%{ transform:translate(-50%,-50%) scale(.2); opacity:.55;} 100%{ transform:translate(-50%,-50%) scale(2.4); opacity:0;} }
+  .ripple { position:absolute; width:40px; height:40px; border:3px solid #FFC53D; border-radius:50%; pointer-events:none; animation: ripple .55s ease-out forwards; }
+  @keyframes spin-slow { to { transform: rotate(360deg); } }
+  .spin-slow { animation: spin-slow 1.1s linear infinite; }
+  .sticker { transform: rotate(-1.5deg); }
+  .sticker-r { transform: rotate(1.5deg); }
+  input[type=range].fine { -webkit-appearance:none; appearance:none; height:6px; border-radius:999px; background:#231A10; }
+  input[type=range].fine::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; border-radius:50%; background:#FFC53D; border:2.5px solid #231A10; cursor:pointer; }
+  input[type=range].fine::-moz-range-thumb { width:22px; height:22px; border-radius:50%; background:#FFC53D; border:2.5px solid #231A10; cursor:pointer; }
+
+  /* ---- full-screen camera / measure layer ---- */
+  .full-fixed { position:fixed; inset:0; }
+  .h-dvh { height:100vh; height:100dvh; }
+  .safe-top { padding-top:max(14px, env(safe-area-inset-top)); }
+  .safe-bottom { padding-bottom:max(14px, env(safe-area-inset-bottom)); }
+  .topfade { background:linear-gradient(to bottom, rgba(35,26,16,.60), rgba(35,26,16,0) 85%); }
+  .botfade { background:linear-gradient(to top, rgba(35,26,16,.55), rgba(35,26,16,0) 85%); }
+  .noptr { pointer-events:none; } .yesptr { pointer-events:auto; }
+
+  /* ---- bottom result sheet ---- */
+  .sheet {
+    position:fixed; left:0; right:0; bottom:0; z-index:40;
+    transform: translateY(105%);
+    transition: transform .38s cubic-bezier(.22,1,.36,1);
+    max-height:72vh; overflow-y:auto;
+    border-top-left-radius:26px; border-top-right-radius:26px;
+  }
+  .sheet.sheet-visible { transform: translateY(0); }
+  .sheet-handle { width:42px; height:5px; border-radius:999px; background:#FFF8E9; opacity:.4; margin:10px auto 2px; cursor:pointer; }
+
+  /* ---- modal & side drawer ---- */
+  .modal-backdrop { position:fixed; inset:0; background:rgba(35,26,16,.55); z-index:80; display:flex; justify-content:flex-end; }
+
+  .refcard.selected { outline:3px solid #231A10; background:#FFC53D; }
+  .shutter-ring { box-shadow:0 0 0 4px #FFF8E9, 0 0 0 7px #231A10; }
+</style>
+</head>
+<body class="min-h-screen bg-cream">
+
+<div class="blob w-40 h-40 bg-banana-300" style="top:-30px; right:-40px;"></div>
+<div class="blob w-32 h-32 bg-leaf-300" style="bottom:60px; left:-40px; animation-delay:1.5s;"></div>
+
+<!-- ===================== RATHEESH SIDE ICON (TUCKED AWAY) ===================== -->
+<div id="ratheesh-mascot-btn" class="fixed right-0 top-1/2 -translate-y-1/2 z-50 cursor-pointer flex items-center gap-2 bg-banana-500 hard rounded-l-2xl border-r-0 px-2.5 py-3 press shadow-hard">
+  <div class="w-8 h-8 rounded-full bg-fritter-500 flex items-center justify-center text-base text-white font-bold hard">🍌</div>
+  <div class="text-xs font-display font-bold text-ink pr-1">ratheesh</div>
+</div>
+
+<!-- ===================== SHARED HEADER ===================== -->
+<header id="app-header" class="max-w-md mx-auto flex items-center justify-between px-5 pt-6 pb-2 relative z-10">
+  <div>
+    <h1 class="font-display font-700 text-[26px] leading-none tracking-tight text-ink" style="font-weight:700;">PAZHAM<span class="text-fritter-500">METER</span></h1>
+    <p class="text-[11px] text-ink/70 mt-1 font-semibold italic">"Some countries measure distance in feet, so why not pazhams?" 🍌</p>
+  </div>
+  <div class="w-11 h-11 rounded-full bg-banana-500 hard flex items-center justify-center text-xl shrink-0 wiggle">🍌</div>
+</header>
+
+<div class="max-w-md mx-auto relative bg-dots">
+
+  <!-- ===================== SCREEN 1: START ===================== -->
+  <section id="screen-start" class="screen active flex-col px-5 pb-8 relative z-10">
+    <div class="flex flex-col justify-center">
+      <div class="inline-block bg-leaf-500 text-cream text-[11px] font-semibold px-3 py-1.5 rounded-full hard sticker w-fit mb-4 mt-2">real reference object. real science. sort of.</div>
+      <h2 class="font-display font-600 text-[38px] leading-[1.02] text-ink mb-3" style="font-weight:600;">How many<br>pazhams long<br>is that thing?</h2>
+      <p class="text-sm text-ink/70 leading-relaxed mb-4 max-w-[34ch]">
+        Pick something you already know the size of — a coin, a card, a sheet of paper — snap a photo next to your object, and we'll convert it into Njalipoovan, Palayamkodan, Robusta or Nendran pazhams.
+      </p>
+
+      <div class="rounded-2xl hard sticker-r p-4 mb-4 bg-white">
+        <p class="text-[11px] text-ink/50 mb-2 font-semibold">🍌 the units, for the uninitiated</p>
+        <div class="grid grid-cols-2 gap-y-2.5 text-sm">
+          <div class="text-leaf-700 font-semibold">Njalipoovan</div><div class="text-right text-ink/60">Small</div>
+          <div class="text-leaf-700 font-semibold">Palayamkodan</div><div class="text-right text-ink/60">Medium-Small</div>
+          <div class="text-leaf-700 font-semibold">Robusta</div><div class="text-right text-ink/60">Medium-Large</div>
+          <div class="text-leaf-700 font-semibold">Nendran</div><div class="text-right text-ink/60">King Size</div>
+        </div>
+        <p class="text-[10px] text-ink/40 mt-2.5 leading-snug">based on real average fruit-length data for these Kerala varieties 🙏</p>
+      </div>
+
+      <div id="recent-log-wrap" class="mb-2 hidden">
+        <div class="flex items-center justify-between mb-1.5">
+          <p class="text-[11px] text-ink/50 font-semibold">🍌 your pazham log</p>
+          <button id="btn-clear-log" class="text-[11px] text-coral-600 underline font-medium">clear</button>
+        </div>
+        <div id="recent-log-list" class="flex flex-col gap-1.5"></div>
+      </div>
+    </div>
+
+    <button id="btn-start" class="press hard w-full bg-banana-500 text-ink rounded-full py-4 font-display font-600 text-[17px] mt-2" style="font-weight:600;">
+      Let's measure something →
+    </button>
+    <p id="start-error" class="text-xs text-coral-600 mt-3 text-center hidden font-medium"></p>
+  </section>
+
+  <!-- ===================== SCREEN 2: REFERENCE SELECT ===================== -->
+  <section id="screen-reference" class="screen flex-col px-5 pb-8 relative z-10">
+    <button id="btn-ref-back" class="press hard w-11 h-11 rounded-full bg-white flex items-center justify-center text-lg mb-4" aria-label="Back">←</button>
+
+    <h2 class="font-display font-600 text-2xl text-ink mb-1.5" style="font-weight:600;">What's your ruler today?</h2>
+    <p class="text-sm text-ink/60 mb-4 leading-relaxed">Bigger object you're measuring → bigger reference object = way more accurate. A coin is great for a comb, terrible for a human.</p>
+
+    <div class="grid grid-cols-2 gap-2.5 mb-3" id="ref-options">
+      <button class="refcard press hard rounded-2xl bg-white p-3 text-left" data-ref="coin">
+        <div class="text-2xl mb-1">🪙</div>
+        <div class="font-display text-sm font-600" style="font-weight:600;">₹1 Coin</div>
+        <div class="text-[11px] text-ink/50">small stuff</div>
+      </button>
+      <button class="refcard press hard rounded-2xl bg-white p-3 text-left" data-ref="card">
+        <div class="text-2xl mb-1">💳</div>
+        <div class="font-display text-sm font-600" style="font-weight:600;">Bank card</div>
+        <div class="text-[11px] text-ink/50">medium stuff</div>
+      </button>
+      <button class="refcard press hard rounded-2xl bg-white p-3 text-left" data-ref="paper">
+        <div class="text-2xl mb-1">📄</div>
+        <div class="font-display text-sm font-600" style="font-weight:600;">A4 paper</div>
+        <div class="text-[11px] text-ink/50">big stuff, people!</div>
+      </button>
+      <button class="refcard press hard rounded-2xl bg-white p-3 text-left" data-ref="custom">
+        <div class="text-2xl mb-1">📐</div>
+        <div class="font-display text-sm font-600" style="font-weight:600;">Custom</div>
+        <div class="text-[11px] text-ink/50">anything you know the size of</div>
+      </button>
+    </div>
+
+    <!-- BANK CARD EDGE OPTIONS -->
+    <div id="card-edge-wrap" class="hidden rounded-2xl hard bg-white p-3 mb-3">
+      <label class="block text-[11px] text-ink/60 font-semibold mb-1.5">Which edge of the bank card are you measuring?</label>
+      <div class="grid grid-cols-2 gap-2">
+        <button id="btn-card-long" class="card-edge-btn press hard rounded-xl py-2 text-xs font-semibold bg-banana-500 text-ink" data-edge="long">Long edge (8.56 cm)</button>
+        <button id="btn-card-short" class="card-edge-btn press hard rounded-xl py-2 text-xs font-semibold bg-white text-ink" data-edge="short">Short edge (5.40 cm)</button>
+      </div>
+    </div>
+
+    <!-- CUSTOM REF OPTIONS -->
+    <div id="custom-ref-wrap" class="hidden rounded-2xl hard bg-white p-4 mb-3">
+      <label class="block text-[11px] text-ink/50 font-semibold mb-1">what is it?</label>
+      <input id="custom-ref-name" type="text" placeholder="e.g. my umbrella" class="w-full border-2 border-ink/20 rounded-xl px-3 py-2 text-sm mb-3 focus:outline-none focus:border-ink">
+      <label class="block text-[11px] text-ink/50 font-semibold mb-1">its length, in cm</label>
+      <input id="custom-ref-len" type="number" inputmode="decimal" min="0.1" step="0.1" placeholder="e.g. 84" class="w-full border-2 border-ink/20 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-ink">
+    </div>
+
+    <div class="mt-1 mb-4">
+      <p class="text-[11px] text-ink/50 mb-1.5 font-medium">measuring the object's</p>
+      <div class="grid grid-cols-2 gap-2">
+        <button data-mode="height" id="ref-mode-height" class="mode-btn press hard rounded-xl py-2.5 text-sm font-display font-500 bg-ink text-cream" style="font-weight:500;">↕ Height</button>
+        <button data-mode="width" id="ref-mode-width" class="mode-btn press hard rounded-xl py-2.5 text-sm font-display font-500 bg-white text-ink" style="font-weight:500;">↔ Width</button>
+      </div>
+    </div>
+
+    <div id="ref-tip" class="rounded-2xl hard bg-leaf-500 text-cream p-3.5 text-[12.5px] leading-relaxed mb-6"></div>
+
+    <button id="btn-ref-continue" class="press hard w-full bg-banana-500 text-ink rounded-full py-4 font-display font-600 text-[17px]" style="font-weight:600;">
+      Continue to camera →
+    </button>
+  </section>
+
+  <!-- ===================== SCREEN 3: CAMERA (full-screen) ===================== -->
+  <section id="screen-camera" class="screen full-fixed h-dvh z-30 bg-cream flex-col">
+    <video id="video" class="absolute inset-0 w-full h-full object-cover" playsinline muted autoplay></video>
+    <div class="absolute inset-0 pointer-events-none" style="border:2.5px dashed rgba(255,197,61,0.65); margin:18px; border-radius:18px;"></div>
+
+    <div class="relative z-10 topfade safe-top px-4 pb-8 flex items-center gap-3 noptr">
+      <button id="btn-back-to-reference" class="yesptr press hard w-11 h-11 rounded-full bg-cream flex items-center justify-center text-lg shrink-0" aria-label="Back">←</button>
+      <div class="flex-1 text-center">
+        <span id="camera-ref-chip" class="yesptr inline-block bg-ink/80 text-cream text-[11px] px-3 py-1.5 rounded-full font-medium"></span>
+      </div>
+      <div class="w-11 h-11 shrink-0"></div>
+    </div>
+
+    <div id="camera-hint-wrap" class="relative z-10 flex justify-center px-6 noptr">
+      <span id="camera-hint" class="yesptr bg-ink/80 text-cream text-[12px] px-3.5 py-2 rounded-full font-medium text-center"></span>
+    </div>
+
+    <div class="flex-1"></div>
+
+    <div class="relative z-10 botfade safe-bottom px-6 pt-10 flex items-center justify-between noptr">
+      <label id="btn-upload-wrap" class="yesptr press hard w-12 h-12 rounded-full bg-cream flex items-center justify-center text-lg cursor-pointer" aria-label="Choose photo instead">
+        🖼️
+        <input id="file-upload" type="file" accept="image/*" capture="environment" class="hidden">
+      </label>
+      <button id="btn-capture" class="yesptr press w-[72px] h-[72px] rounded-full bg-banana-500 shutter-ring" aria-label="Capture photo"></button>
+      <button id="btn-info-camera" class="yesptr press hard w-12 h-12 rounded-full bg-cream flex items-center justify-center text-lg" aria-label="Accuracy tips">?</button>
+    </div>
+  </section>
+
+  <!-- ===================== SCREEN 4: MEASURE (full-screen) ===================== -->
+  <section id="screen-measure" class="screen full-fixed h-dvh z-30 bg-cream flex-col items-center justify-center">
+
+    <div class="relative rounded-2xl overflow-hidden bg-banana-100" id="stage-wrap">
+      <canvas id="stage-canvas"></canvas>
+      <div id="detect-overlay" class="absolute inset-0 hidden items-center justify-center bg-ink/55 flex-col gap-2">
+        <div class="w-10 h-10 rounded-full border-4 border-banana-500 border-t-transparent spin-slow"></div>
+        <p id="detect-overlay-text" class="text-cream text-xs font-medium">peeling for edges…</p>
+      </div>
+      <div id="ripple-layer" class="absolute inset-0 pointer-events-none"></div>
+    </div>
+
+    <!-- top overlay bar -->
+    <div class="full-fixed z-30 flex-col noptr" style="pointer-events:none;">
+      <div class="topfade safe-top px-4 pb-8 noptr">
+        <div class="flex items-center gap-2 mb-2">
+          <button id="btn-measure-retake-icon" class="yesptr press hard w-10 h-10 rounded-full bg-cream flex items-center justify-center text-sm shrink-0" aria-label="Retake photo">📷</button>
+          <div class="flex gap-1 yesptr" id="progress-dots">
+            <span class="step-dot text-base" data-step="ref">🪙</span>
+            <span class="step-dot text-base opacity-30" data-step="obj">📏</span>
+            <span class="step-dot text-base opacity-30" data-step="done">🎉</span>
+          </div>
+          <p id="step-text" class="yesptr text-[12.5px] font-medium text-cream flex-1 bg-ink/70 rounded-full px-3 py-1.5">Tap the coin</p>
+          <button id="btn-info-measure" class="yesptr press hard w-10 h-10 rounded-full bg-cream flex items-center justify-center text-sm shrink-0" aria-label="Accuracy tips">?</button>
+        </div>
+        <div class="flex items-center gap-2 yesptr">
+          <div class="grid grid-cols-2 gap-1.5 flex-1" id="measure-mode-toggle">
+            <button data-mode="height" class="mode-btn press hard rounded-full py-1.5 text-[12px] font-display font-500 bg-ink text-cream" style="font-weight:500;">↕ Height</button>
+            <button data-mode="width" class="mode-btn press hard rounded-full py-1.5 text-[12px] font-display font-500 bg-cream text-ink" style="font-weight:500;">↔ Width</button>
+          </div>
+        </div>
+        <div id="finetune-wrap" class="mt-2.5 hidden yesptr bg-cream/95 hard rounded-2xl px-3 py-2">
+          <div class="flex items-center justify-between mb-1">
+            <p class="text-[10.5px] text-ink/60 font-medium">circle looks off? nudge it</p>
+            <p id="confidence-badge" class="text-[10.5px] font-semibold"></p>
+          </div>
+          <input id="finetune-slider" type="range" min="-25" max="25" value="0" class="fine w-full">
+        </div>
+        <div id="warn-chip" class="mt-2.5 hidden yesptr bg-coral-500 text-cream text-[11px] font-medium px-3 py-2 rounded-2xl hard"></div>
+      </div>
+    </div>
+
+    <!-- FLOATING REVEAL BUTTON WHEN SHEET IS HIDDEN -->
+    <button id="btn-show-sheet" class="hidden press hard fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-banana-500 text-ink px-4 py-2.5 rounded-full font-display text-xs font-bold shadow-hardlg flex items-center gap-2">
+      🍌 Show Result Sheet
+    </button>
+
+    <!-- result bottom sheet -->
+    <div id="result-sheet" class="sheet hard bg-ink text-cream safe-bottom">
+      <div class="sheet-handle" id="sheet-handle-bar" title="Tap to toggle result sheet"></div>
+      <div class="px-5 pt-2 pb-5 relative overflow-hidden">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-[11px] text-cream/50 font-medium">banana meter result</p>
+          <button id="btn-hide-sheet" class="press hard bg-cream/20 hover:bg-cream/30 text-cream text-[11px] font-semibold px-3 py-1 rounded-full border border-cream/30 flex items-center gap-1">
+            👁️ Hide result
+          </button>
+        </div>
+
+        <div class="flex items-end gap-2 mb-1">
+          <p id="reading-banana-count" class="font-display text-6xl leading-none" style="font-weight:700;">—</p>
+          <p id="reading-banana-name" class="text-lg pb-1 text-banana-300 font-medium">Nendran</p>
+        </div>
+        <p id="reading-note" class="text-[11px] text-cream/40 mt-1 leading-snug"></p>
+
+        <div class="grid grid-cols-4 gap-2 mt-4" id="variety-chips">
+          <button data-variety="njalipoovan" data-len="10.0" class="variety-btn press hard rounded-xl py-2 text-[10.5px] font-semibold bg-cream text-ink">Njali­poovan</button>
+          <button data-variety="palayamkodan" data-len="11.5" class="variety-btn press hard rounded-xl py-2 text-[10.5px] font-semibold bg-cream text-ink">Palayamkodan</button>
+          <button data-variety="robusta" data-len="18.5" class="variety-btn press hard rounded-xl py-2 text-[10.5px] font-semibold bg-cream text-ink">Robusta</button>
+          <button data-variety="nendran" data-len="22.0" class="variety-btn press hard rounded-xl py-2 text-[10.5px] font-semibold bg-banana-500 text-ink">Nendran</button>
+        </div>
+
+        <div class="flex items-center gap-2 mt-4">
+          <button id="btn-redo-obj" class="press hard flex-1 bg-cream rounded-full py-3 font-semibold text-[13px] text-ink">↺ Redo object</button>
+          <button id="btn-redo-ref" class="press hard flex-1 bg-cream rounded-full py-3 font-semibold text-[13px] text-ink">🪙 Recalibrate</button>
+        </div>
+        <div class="flex items-center gap-2 mt-2.5">
+          <button id="btn-retake" class="press hard flex-1 bg-cream rounded-full py-3 font-semibold text-[13px] text-ink">📷 Retake</button>
+          <button id="btn-share" class="press hard flex-1 bg-banana-500 rounded-full py-3 font-semibold text-[13px] text-ink">🔗 Share result</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ===================== RATHEESH SLIDE-OUT DRAWER ===================== -->
+<div id="ratheesh-modal" class="modal-backdrop hidden">
+  <div class="hard bg-cream h-full w-full max-w-xs sm:max-w-sm ml-auto p-5 overflow-y-auto flex flex-col justify-between">
+    <div>
+      <div class="flex items-center justify-between mb-4 border-b-2 border-ink/10 pb-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-fritter-500 hard flex items-center justify-center text-xl text-white">🍌</div>
+          <div>
+            <h3 class="font-display text-lg font-bold text-ink">ratheesh</h3>
+          </div>
+        </div>
+        <button id="btn-ratheesh-close" class="press hard w-8 h-8 rounded-full bg-white flex items-center justify-center text-sm font-bold">✕</button>
+      </div>
+
+      <!-- TAB SWITCHER -->
+      <div class="flex gap-1.5 mb-4">
+        <button id="tab-btn-guide" class="flex-1 py-2 font-display text-[11px] font-bold rounded-xl hard bg-banana-500 text-ink">How to Use</button>
+        <button id="tab-btn-facts" class="flex-1 py-2 font-display text-[11px] font-bold rounded-xl hard bg-white text-ink">Fun Facts</button>
+        <button id="tab-btn-monuments" class="flex-1 py-2 font-display text-[11px] font-bold rounded-xl hard bg-white text-ink">Monuments</button>
+      </div>
+
+      <!-- TAB 1: GUIDE -->
+      <div id="tab-content-guide" class="space-y-3 text-sm text-ink/80 leading-relaxed">
+        <div class="bg-white hard rounded-2xl p-3">
+          <p class="font-bold text-fritter-600 mb-1">👋 Swagatham! I'm Ratheesh!</p>
+          <p class="text-xs">I'm here to ensure you get crisp, perfectly accurate pazham measurements every time.</p>
+        </div>
+        <div class="space-y-2 text-xs">
+          <div class="flex gap-2 items-start"><span class="text-base">1️⃣</span> <span><b>Pick a reference object:</b> A coin for small things, paper/card for human height.</span></div>
+          <div class="flex gap-2 items-start"><span class="text-base">2️⃣</span> <span><b>Snap a straight photo:</b> Keep reference & object on the exact same distance plane.</span></div>
+          <div class="flex gap-2 items-start"><span class="text-base">3️⃣</span> <span><b>Tap the endpoints:</b> Tap top/bottom or left/right to lay down your line of pazhams!</span></div>
+        </div>
+      </div>
+
+      <!-- TAB 2: FUN FACTS -->
+      <div id="tab-content-facts" class="hidden space-y-3 text-xs text-ink/80">
+        <div class="bg-white hard rounded-xl p-3">
+          <p class="font-bold text-ink mb-1">⚡ Bananas are naturally radioactive!</p>
+          <p>They contain high levels of potassium-40. Don't worry, you'd need to eat 10,000,000 pazhams at once to feel anything!</p>
+        </div>
+        <div class="bg-white hard rounded-xl p-3">
+          <p class="font-bold text-ink mb-1">🍌 Botanically a Berry?</p>
+          <p>Yes! Bananas are berries, while strawberries are not. Mind blown, right?</p>
+        </div>
+        <div class="bg-white hard rounded-xl p-3">
+          <p class="font-bold text-ink mb-1">🍌 Humans share 60% DNA with Pazhams!</p>
+          <p>We are basically 60% Pazham inside. Respect the fruit.</p>
+        </div>
+      </div>
+
+      <!-- TAB 3: MONUMENTS IN PAZHAMS (INDIA & KERALA) -->
+      <div id="tab-content-monuments" class="hidden space-y-2.5">
+        <div class="bg-white hard rounded-2xl p-2.5 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-banana-100 flex items-center justify-center text-xl hard shrink-0">🕌</div>
+          <div>
+            <h4 class="font-display font-bold text-xs">Taj Mahal, Agra</h4>
+            <p class="text-[11px] font-bold text-fritter-600 mt-0.5">🍌 ~332 Nendran Pazhams</p>
+          </div>
+        </div>
+        <div class="bg-white hard rounded-2xl p-2.5 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-banana-100 flex items-center justify-center text-xl hard shrink-0">🗼</div>
+          <div>
+            <h4 class="font-display font-bold text-xs">Qutub Minar, Delhi</h4>
+            <p class="text-[11px] font-bold text-fritter-600 mt-0.5">🍌 ~330 Nendran Pazhams</p>
+          </div>
+        </div>
+        <div class="bg-white hard rounded-2xl p-2.5 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-banana-100 flex items-center justify-center text-xl hard shrink-0">🦅</div>
+          <div>
+            <h4 class="font-display font-bold text-xs">Jatayu Earth's Center, Kerala</h4>
+            <p class="text-[11px] font-bold text-fritter-600 mt-0.5">🍌 ~277 Nendran Pazhams</p>
+          </div>
+        </div>
+        <div class="bg-white hard rounded-2xl p-2.5 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-banana-100 flex items-center justify-center text-xl hard shrink-0">🏛️</div>
+          <div>
+            <h4 class="font-display font-bold text-xs">Sree Padmanabhaswamy Gopuram</h4>
+            <p class="text-[11px] font-bold text-fritter-600 mt-0.5">🍌 ~139 Nendran Pazhams</p>
+          </div>
+        </div>
+        <div class="bg-white hard rounded-2xl p-2.5 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-banana-100 flex items-center justify-center text-xl hard shrink-0">🏰</div>
+          <div>
+            <h4 class="font-display font-bold text-xs">Bekal Fort Tower, Kerala</h4>
+            <p class="text-[11px] font-bold text-fritter-600 mt-0.5">🍌 ~41 Nendran Pazhams</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== TIPS MODAL ===================== -->
+<div id="tips-modal" class="modal-backdrop hidden">
+  <div class="hard bg-cream rounded-t-3xl sm:rounded-3xl p-5 max-w-md w-full max-h-[80vh] overflow-y-auto m-auto">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="font-display text-xl font-600" style="font-weight:600;">getting an accurate reading</h3>
+      <button id="btn-tips-close" class="press hard w-9 h-9 rounded-full bg-white flex items-center justify-center">✕</button>
+    </div>
+    <ul class="text-sm text-ink/75 leading-relaxed space-y-2.5 list-none">
+      <li>📐 <b>Same plane, facing the camera.</b> Hold your reference object upright, at roughly the same distance from the camera as the thing you're measuring.</li>
+      <li>📏 <b>Match the reference to the object.</b> A tiny coin next to a whole human amplifies error. Use card/paper for bigger objects.</li>
+      <li>🧍 <b>Measuring a person?</b> Tape paper to a wall beside them, or hold it at chest height, then step back so both fully fit in frame.</li>
+      <li>💡 <b>Even lighting helps.</b> Avoid harsh dark shadows across the coin's edge.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ================= REFERENCE OBJECTS & PAZHAM DATABASE =================
+  const REFERENCES = {
+    coin:   { key:'coin',   emoji:'🪙', name:'₹1 coin',              lengthCm:2.193, method:'auto',   tip:'small stuff — combs, phones, remotes' },
+    card:   { key:'card',   emoji:'💳', name:'bank card (long edge)',lengthCm:8.56,  method:'manual', tip:'medium stuff — books, shoes, laptops' },
+    paper:  { key:'paper',  emoji:'📄', name:'A4 paper (long edge)', lengthCm:29.7,  method:'manual', tip:'big stuff — furniture, doors, people' },
+    custom: { key:'custom', emoji:'📐', name:'custom object',        lengthCm:null,  method:'manual', tip:'anything you already know the length of' }
+  };
+
+  const VARIETIES = { njalipoovan:10.0, palayamkodan:11.5, robusta:18.5, nendran:22.0 };
+  const WORKING_MAX_DIM = 1400;
+  const MIN_REF_PX = 18;
+
+  // ---------- state ----------
+  let stream = null;
+  let frozenSource = null;
+  let workingCanvas = null;
+  let grayData = null;
+  let orientation = 'height';
+  let selectedVariety = 'nendran';
+
+  let referenceKey = 'coin';
+  let cardEdge = 'long'; // 'long' (8.56cm) or 'short' (5.40cm)
+  let calibMethod = 'auto';
+  let referenceLengthCm = REFERENCES.coin.lengthCm;
+  let referenceName = REFERENCES.coin.name;
+  let referenceEmoji = REFERENCES.coin.emoji;
+  let customValid = false;
+
+  let appState = 'awaiting-coin';
+  let coinCenter = null, coinRadiusBase = null, coinConfidence = 0;
+  let fineTuneAdjust = 0;
+  let rawRefA = null, rawRefB = null;
+  let rawObjA = null, rawObjB = null;
+  let loggedThisResult = false;
+
+  // ---------- element refs ----------
+  const screens = {
+    start: document.getElementById('screen-start'),
+    reference: document.getElementById('screen-reference'),
+    camera: document.getElementById('screen-camera'),
+    measure: document.getElementById('screen-measure')
+  };
+  const appHeader = document.getElementById('app-header');
+  const video = document.getElementById('video');
+  const stageWrap = document.getElementById('stage-wrap');
+  const stageCanvas = document.getElementById('stage-canvas');
+  const stageCtx = stageCanvas.getContext('2d');
+  const startError = document.getElementById('start-error');
+  const fileInput = document.getElementById('file-upload');
+  const detectOverlay = document.getElementById('detect-overlay');
+  const rippleLayer = document.getElementById('ripple-layer');
+  const stepText = document.getElementById('step-text');
+  const fineWrap = document.getElementById('finetune-wrap');
+  const fineSlider = document.getElementById('finetune-slider');
+  const confidenceBadge = document.getElementById('confidence-badge');
+  const warnChip = document.getElementById('warn-chip');
+  const resultSheet = document.getElementById('result-sheet');
+  const btnHideSheet = document.getElementById('btn-hide-sheet');
+  const btnShowSheet = document.getElementById('btn-show-sheet');
+  const sheetHandleBar = document.getElementById('sheet-handle-bar');
+
+  function showScreen(name){
+    Object.values(screens).forEach(s => s.classList.remove('active'));
+    screens[name].classList.add('active');
+    appHeader.classList.toggle('hidden', name === 'camera' || name === 'measure');
+  }
+
+  // ================= RATHEESH HANDLERS =================
+  const ratheeshModal = document.getElementById('ratheesh-modal');
+  document.getElementById('ratheesh-mascot-btn').addEventListener('click', () => {
+    ratheeshModal.classList.remove('hidden');
+  });
+  document.getElementById('btn-ratheesh-close').addEventListener('click', () => {
+    ratheeshModal.classList.add('hidden');
+  });
+  ratheeshModal.addEventListener('click', (e) => {
+    if (e.target === ratheeshModal) ratheeshModal.classList.add('hidden');
+  });
+
+  const tabGuide = document.getElementById('tab-btn-guide');
+  const tabFacts = document.getElementById('tab-btn-facts');
+  const tabMonuments = document.getElementById('tab-btn-monuments');
+  const contentGuide = document.getElementById('tab-content-guide');
+  const contentFacts = document.getElementById('tab-content-facts');
+  const contentMonuments = document.getElementById('tab-content-monuments');
+
+  function switchRatheeshTab(activeTab){
+    [tabGuide, tabFacts, tabMonuments].forEach(t => {
+      t.classList.remove('bg-banana-500');
+      t.classList.add('bg-white');
+    });
+    [contentGuide, contentFacts, contentMonuments].forEach(c => c.classList.add('hidden'));
+
+    if (activeTab === 'guide') {
+      tabGuide.classList.add('bg-banana-500');
+      contentGuide.classList.remove('hidden');
+    } else if (activeTab === 'facts') {
+      tabFacts.classList.add('bg-banana-500');
+      contentFacts.classList.remove('hidden');
+    } else if (activeTab === 'monuments') {
+      tabMonuments.classList.add('bg-banana-500');
+      contentMonuments.classList.remove('hidden');
+    }
+  }
+
+  tabGuide.addEventListener('click', () => switchRatheeshTab('guide'));
+  tabFacts.addEventListener('click', () => switchRatheeshTab('facts'));
+  tabMonuments.addEventListener('click', () => switchRatheeshTab('monuments'));
+
+  // ================= SCREEN: START =================
+  renderRecentLog();
+  document.getElementById('btn-start').addEventListener('click', () => {
+    showScreen('reference');
+  });
+  document.getElementById('btn-clear-log').addEventListener('click', () => {
+    localStorage.removeItem('pazhammeter_log');
+    renderRecentLog();
+  });
+
+  function renderRecentLog(){
+    let log = [];
+    try { log = JSON.parse(localStorage.getItem('pazhammeter_log') || '[]'); } catch(e) { log = []; }
+    const wrap = document.getElementById('recent-log-wrap');
+    const list = document.getElementById('recent-log-list');
+    if (!log.length) { wrap.classList.add('hidden'); return; }
+    wrap.classList.remove('hidden');
+    list.innerHTML = log.slice(0, 4).map(e => `
+      <div class="hard rounded-xl bg-white px-3 py-2 flex items-center justify-between text-[12px]">
+        <span class="font-semibold">${e.count.toFixed(2)} ${cap(e.variety)} Pazhams</span>
+      </div>`).join('');
+  }
+
+  function saveToLog(count, variety){
+    let log = [];
+    try { log = JSON.parse(localStorage.getItem('pazhammeter_log') || '[]'); } catch(e) { log = []; }
+    log.unshift({ ts: Date.now(), count, variety });
+    log = log.slice(0, 5);
+    localStorage.setItem('pazhammeter_log', JSON.stringify(log));
+  }
+
+  // ================= SCREEN: REFERENCE SELECT =================
+  document.getElementById('btn-ref-back').addEventListener('click', () => showScreen('start'));
+
+  const refOptionButtons = document.querySelectorAll('.refcard');
+  const cardEdgeWrap = document.getElementById('card-edge-wrap');
+  const btnCardLong = document.getElementById('btn-card-long');
+  const btnCardShort = document.getElementById('btn-card-short');
+
+  const customWrap = document.getElementById('custom-ref-wrap');
+  const customNameInput = document.getElementById('custom-ref-name');
+  const customLenInput = document.getElementById('custom-ref-len');
+  const refTip = document.getElementById('ref-tip');
+  const refContinueBtn = document.getElementById('btn-ref-continue');
+
+  function selectReference(key){
+    referenceKey = key;
+    refOptionButtons.forEach(b => b.classList.toggle('selected', b.dataset.ref === key));
+    cardEdgeWrap.classList.toggle('hidden', key !== 'card');
+    customWrap.classList.toggle('hidden', key !== 'custom');
+    updateRefTip();
+    updateContinueState();
+  }
+
+  function setCardEdge(edge){
+    cardEdge = edge;
+    btnCardLong.classList.toggle('bg-banana-500', edge === 'long');
+    btnCardLong.classList.toggle('bg-white', edge !== 'long');
+    btnCardShort.classList.toggle('bg-banana-500', edge === 'short');
+    btnCardShort.classList.toggle('bg-white', edge !== 'short');
+    if (edge === 'long') {
+      REFERENCES.card.lengthCm = 8.56;
+      REFERENCES.card.name = 'bank card (long edge)';
+    } else {
+      REFERENCES.card.lengthCm = 5.40;
+      REFERENCES.card.name = 'bank card (short edge)';
+    }
+  }
+
+  btnCardLong.addEventListener('click', () => setCardEdge('long'));
+  btnCardShort.addEventListener('click', () => setCardEdge('short'));
+
+  refOptionButtons.forEach(btn => btn.addEventListener('click', () => selectReference(btn.dataset.ref)));
+  customNameInput.addEventListener('input', updateContinueState);
+  customLenInput.addEventListener('input', updateContinueState);
+
+  function updateContinueState(){
+    if (referenceKey === 'custom') {
+      const len = parseFloat(customLenInput.value);
+      customValid = customNameInput.value.trim().length > 0 && !isNaN(len) && len > 0;
+    } else {
+      customValid = true;
+    }
+    refContinueBtn.classList.toggle('opacity-40', !customValid);
+  }
+
+  function updateRefTip(){
+    const ref = REFERENCES[referenceKey];
+    let msg = `<b>${ref.emoji} best for:</b> ${ref.tip}.`;
+    if (orientation === 'height') {
+      if (ref.method === 'auto') {
+        msg += ` <br><br>📐 Measuring something tall? A coin works, but for a full-body height try Card or Paper instead — you'll get a much steadier reading.`;
+      } else {
+        msg += ` <br><br>🙌 Good pick for a standing height. Hold it facing the camera, in the same plane as the person — not on the floor — for the truest scale.`;
+      }
+    }
+    refTip.innerHTML = msg;
+  }
+
+  document.querySelectorAll('#screen-reference .mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      orientation = btn.dataset.mode;
+      syncOrientationButtons();
+      updateRefTip();
+    });
+  });
+
+  function syncOrientationButtons(){
+    document.querySelectorAll('.mode-btn').forEach(b => {
+      const active = b.dataset.mode === orientation;
+      b.classList.toggle('bg-ink', active);
+      b.classList.toggle('text-cream', active);
+      b.classList.toggle('bg-white', !active && b.closest('#screen-reference') != null);
+      b.classList.toggle('bg-cream', !active && b.closest('#screen-measure') != null);
+      b.classList.toggle('text-ink', !active);
+    });
+  }
+
+  refContinueBtn.addEventListener('click', async () => {
+    if (!customValid) return;
+    const ref = REFERENCES[referenceKey];
+    calibMethod = ref.method;
+    if (referenceKey === 'custom') {
+      referenceLengthCm = parseFloat(customLenInput.value);
+      referenceName = customNameInput.value.trim();
+      referenceEmoji = '📐';
+    } else {
+      referenceLengthCm = ref.lengthCm;
+      referenceName = ref.name;
+      referenceEmoji = ref.emoji;
+    }
+    document.getElementById('camera-ref-chip').textContent = `${referenceEmoji} ${referenceName} + your object, both in frame`;
+    startError.classList.add('hidden');
+    showScreen('camera');
+    const ok = await startCamera();
+    if (!ok) setCameraHint('camera unavailable — use the photo icon below', true);
+    else setCameraHint(`${referenceEmoji} ${referenceName} + your object, in frame`, false);
+  });
+
+  selectReference('coin');
+  syncOrientationButtons();
+
+  // ================= CAMERA =================
+  function setCameraHint(text, warn){
+    const el = document.getElementById('camera-hint');
+    el.textContent = text;
+    el.className = 'yesptr text-cream text-[12px] px-3.5 py-2 rounded-full font-medium text-center ' + (warn ? 'bg-coral-600' : 'bg-ink/80');
+  }
+
+  async function startCamera(){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
+    const attempts = [
+      { video: { facingMode: { exact: 'environment' } }, audio: false },
+      { video: { facingMode: 'environment' }, audio: false },
+      { video: true, audio: false }
+    ];
+    for (const constraints of attempts) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = stream;
+        await video.play();
+        return true;
+      } catch (e) { /* try next */ }
+    }
+    return false;
+  }
+
+  function stopCamera(){
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  }
+
+  document.getElementById('btn-back-to-reference').addEventListener('click', () => {
+    stopCamera();
+    showScreen('reference');
+  });
+
+  document.getElementById('btn-capture').addEventListener('click', () => {
+    if (!stream || !video.videoWidth) return;
+    vibrate(12);
+    const off = document.createElement('canvas');
+    off.width = video.videoWidth;
+    off.height = video.videoHeight;
+    off.getContext('2d').drawImage(video, 0, 0);
+    frozenSource = off;
+    stopCamera();
+    enterMeasureScreen();
+  });
+
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => {
+      const off = document.createElement('canvas');
+      off.width = img.naturalWidth;
+      off.height = img.naturalHeight;
+      off.getContext('2d').drawImage(img, 0, 0);
+      frozenSource = off;
+      stopCamera();
+      enterMeasureScreen();
+    };
+    img.src = URL.createObjectURL(file);
+  });
+
+  function vibrate(ms){ if (navigator.vibrate) { try { navigator.vibrate(ms); } catch(e){} } }
+
+  // ================= TIPS MODAL =================
+  const tipsModal = document.getElementById('tips-modal');
+  function openTips(){ tipsModal.classList.remove('hidden'); }
+  function closeTips(){ tipsModal.classList.add('hidden'); }
+  document.getElementById('btn-info-camera').addEventListener('click', openTips);
+  document.getElementById('btn-info-measure').addEventListener('click', openTips);
+  document.getElementById('btn-tips-close').addEventListener('click', closeTips);
+  tipsModal.addEventListener('click', (e) => { if (e.target === tipsModal) closeTips(); });
+
+  // ================= HIDE / SHOW RESULT SHEET =================
+  function hideSheet(){
+    resultSheet.classList.remove('sheet-visible');
+    const hasResult = !!(currentReferencePx() && rawObjA && rawObjB);
+    if (hasResult) btnShowSheet.classList.remove('hidden');
+  }
+
+  function showSheet(){
+    resultSheet.classList.add('sheet-visible');
+    btnShowSheet.classList.add('hidden');
+  }
+
+  btnHideSheet.addEventListener('click', hideSheet);
+  sheetHandleBar.addEventListener('click', () => {
+    if (resultSheet.classList.contains('sheet-visible')) hideSheet();
+    else showSheet();
+  });
+  btnShowSheet.addEventListener('click', showSheet);
+
+  // ================= SCREEN: MEASURE — SETUP =================
+  function enterMeasureScreen(){
+    showScreen('measure');
+    detectOverlay.classList.remove('hidden'); detectOverlay.classList.add('flex');
+    document.getElementById('detect-overlay-text').textContent = 'unpacking your photo…';
+    setTimeout(() => {
+      buildWorking();
+      sizeStageCanvas();
+      resetAll();
+      detectOverlay.classList.add('hidden'); detectOverlay.classList.remove('flex');
+      window.addEventListener('resize', onResize);
+    }, 30);
+  }
+
+  function buildWorking(){
+    const scale = Math.min(1, WORKING_MAX_DIM / Math.max(frozenSource.width, frozenSource.height));
+    const w = Math.max(1, Math.round(frozenSource.width * scale));
+    const h = Math.max(1, Math.round(frozenSource.height * scale));
+    workingCanvas = document.createElement('canvas');
+    workingCanvas.width = w; workingCanvas.height = h;
+    workingCanvas.getContext('2d').drawImage(frozenSource, 0, 0, w, h);
+    grayData = buildGray(workingCanvas);
+  }
+
+  function buildGray(canvas){
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    const data = ctx.getImageData(0, 0, w, h).data;
+    const gray = new Float32Array(w * h);
+    for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+      gray[p] = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+    }
+    return { gray, w, h };
+  }
+
+  function onResize(){
+    if (screens.measure.classList.contains('active')) {
+      sizeStageCanvas();
+      render();
+    }
+  }
+
+  function sizeStageCanvas(){
+    const dpr = window.devicePixelRatio || 1;
+    const availW = window.innerWidth;
+    const availH = window.innerHeight;
+    const ratio = workingCanvas.height / workingCanvas.width;
+    let cssW = availW, cssH = cssW * ratio;
+    if (cssH > availH) { cssH = availH; cssW = cssH / ratio; }
+    stageWrap.style.width = cssW + 'px';
+    stageWrap.style.height = cssH + 'px';
+    stageCanvas.width = cssW * dpr;
+    stageCanvas.height = cssH * dpr;
+    stageCanvas.style.width = cssW + 'px';
+    stageCanvas.style.height = cssH + 'px';
+    stageCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function resetAll(){
+    appState = calibMethod === 'auto' ? 'awaiting-coin' : 'awaiting-refA';
+    coinCenter = null; coinRadiusBase = null; coinConfidence = 0; fineTuneAdjust = 0;
+    rawRefA = null; rawRefB = null;
+    rawObjA = null; rawObjB = null;
+    loggedThisResult = false;
+    fineSlider.value = 0;
+    fineWrap.classList.add('hidden');
+    warnChip.classList.add('hidden');
+    btnShowSheet.classList.add('hidden');
+    document.getElementById('progress-dots').querySelector('[data-step="ref"]').textContent = referenceEmoji;
+    syncOrientationButtons();
+    updateStepUI();
+    render();
+  }
+
+  document.getElementById('btn-retake').addEventListener('click', retakePhoto);
+  document.getElementById('btn-measure-retake-icon').addEventListener('click', retakePhoto);
+  async function retakePhoto(){
+    frozenSource = null;
+    window.removeEventListener('resize', onResize);
+    showScreen('camera');
+    setCameraHint(`${referenceEmoji} ${referenceName} + your object, in frame`, false);
+    const ok = await startCamera();
+    if (!ok) setCameraHint('camera unavailable — use the photo icon below', true);
+  }
+
+  document.getElementById('btn-redo-ref').addEventListener('click', () => {
+    appState = calibMethod === 'auto' ? 'awaiting-coin' : 'awaiting-refA';
+    coinCenter = null; coinRadiusBase = null; fineTuneAdjust = 0; fineSlider.value = 0;
+    fineWrap.classList.add('hidden');
+    rawRefA = null; rawRefB = null;
+    rawObjA = null; rawObjB = null;
+    btnShowSheet.classList.add('hidden');
+    updateStepUI(); render();
+  });
+
+  document.getElementById('btn-redo-obj').addEventListener('click', () => {
+    if (!currentReferencePx()) return;
+    appState = 'awaiting-objA';
+    rawObjA = null; rawObjB = null;
+    btnShowSheet.classList.add('hidden');
+    updateStepUI(); render();
+  });
+
+  fineSlider.addEventListener('input', () => {
+    fineTuneAdjust = parseFloat(fineSlider.value);
+    render();
+  });
+
+  document.querySelectorAll('#measure-mode-toggle .mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      orientation = btn.dataset.mode;
+      syncOrientationButtons();
+      render();
+    });
+  });
+
+  document.querySelectorAll('.variety-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedVariety = btn.dataset.variety;
+      document.querySelectorAll('.variety-btn').forEach(b => {
+        b.classList.toggle('bg-banana-500', b === btn);
+        b.classList.toggle('bg-cream', b !== btn);
+      });
+      render();
+    });
+  });
+
+  document.getElementById('btn-share').addEventListener('click', shareResult);
+  async function shareResult(){
+    const rWork = currentReferencePx();
+    if (!rWork || !rawObjA || !rawObjB) return;
+    const out = document.createElement('canvas');
+    const W = 1000, H = 1250;
+    out.width = W; out.height = H;
+    const ctx = out.getContext('2d');
+    ctx.fillStyle = '#FFF8E9'; ctx.fillRect(0, 0, W, H);
+    const photoH = 820;
+    const scale = Math.min(W / workingCanvas.width, photoH / workingCanvas.height);
+    const dw = workingCanvas.width * scale, dh = workingCanvas.height * scale;
+    ctx.drawImage(workingCanvas, (W - dw) / 2, 40, dw, dh);
+    ctx.fillStyle = '#231A10';
+    ctx.fillRect(0, photoH + 60, W, H - photoH - 60);
+    ctx.font = '700 130px Fredoka, sans-serif';
+    ctx.fillStyle = '#FFC53D';
+    ctx.fillText(countEl.textContent, 50, photoH + 200);
+    ctx.font = '600 40px Fredoka, sans-serif';
+    ctx.fillStyle = '#FFF8E9';
+    ctx.fillText(nameEl.textContent, 50, photoH + 260);
+    ctx.font = '500 26px "Space Grotesk", sans-serif';
+    ctx.fillStyle = 'rgba(255,248,233,0.55)';
+    ctx.fillText('measured with PAZHAM METER 🍌', 50, H - 40);
+
+    out.toBlob(async (blob) => {
+      const file = new File([blob], 'pazhammeter-result.png', { type: 'image/png' });
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: 'PAZHAM METER result' }); return; } catch(e) {}
+      }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'pazhammeter-result.png';
+      a.click();
+    }, 'image/png');
+  }
+
+  // ================= STEP UI =================
+  function updateStepUI(){
+    const dots = document.querySelectorAll('.step-dot');
+    dots.forEach(d => d.classList.add('opacity-30'));
+    const objLabel = orientation === 'height' ? 'top' : 'left edge';
+    const objLabel2 = orientation === 'height' ? 'bottom' : 'right edge';
+    if (appState === 'awaiting-coin' || appState === 'detecting') {
+      dots[0].classList.remove('opacity-30');
+      stepText.innerHTML = `Tap the <b>center of the ${referenceName}</b>`;
+    } else if (appState === 'awaiting-refA') {
+      dots[0].classList.remove('opacity-30');
+      stepText.innerHTML = `Tap <b>one end</b> of your ${referenceName}`;
+    } else if (appState === 'awaiting-refB') {
+      dots[0].classList.remove('opacity-30');
+      stepText.innerHTML = `Now tap the <b>other end</b>`;
+    } else if (appState === 'awaiting-objA') {
+      dots[1].classList.remove('opacity-30');
+      stepText.innerHTML = `Tap the <b>${objLabel}</b> of your object`;
+    } else if (appState === 'awaiting-objB') {
+      dots[1].classList.remove('opacity-30');
+      stepText.innerHTML = `Now tap the <b>${objLabel2}</b>`;
+    } else if (appState === 'done') {
+      dots[0].classList.remove('opacity-30');
+      dots[1].classList.remove('opacity-30');
+      dots[2].classList.remove('opacity-30');
+      stepText.innerHTML = `Boom 🎉 tap photo to <b>re-measure</b>`;
+    }
+  }
+
+  // ================= COIN DETECTION =================
+  function detectCoinCircle(cx, cy){
+    const { gray, w, h } = grayData;
+    function sample(x, y){
+      x = Math.max(0, Math.min(w - 1, Math.round(x)));
+      y = Math.max(0, Math.min(h - 1, Math.round(y)));
+      return gray[y * w + x];
+    }
+    const ANGLES = 72;
+    const minR = Math.max(6, Math.round(Math.min(w, h) * 0.012));
+    const maxR = Math.round(Math.min(w, h) * 0.28);
+    function scan(cx, cy){
+      const found = [];
+      for (let a = 0; a < ANGLES; a++) {
+        const theta = (a / ANGLES) * Math.PI * 2;
+        const dx = Math.cos(theta), dy = Math.sin(theta);
+        let bestR = -1, bestGrad = 0;
+        for (let r = minR; r <= maxR; r++) {
+          const val = sample(cx + dx * r, cy + dy * r);
+          const before = sample(cx + dx * (r - 3), cy + dy * (r - 3));
+          const grad = Math.abs(val - before);
+          if (grad > bestGrad) {
+            bestGrad = grad; bestR = r;
+          }
+        }
+        if (bestR > 0 && bestGrad > 10) {
+          found.push({ r: bestR, theta, g: bestGrad });
+        }
+      }
+      return found;
+    }
+
+    let pass1 = scan(cx, cy);
+    if (pass1.length < ANGLES * 0.35) return null;
+    pass1.sort((a, b) => a.r - b.r);
+    let median = pass1[Math.floor(pass1.length / 2)].r;
+    let filtered = pass1.filter(o => Math.abs(o.r - median) / median < 0.35);
+
+    let sx = 0, sy = 0;
+    filtered.forEach(o => { sx += cx + Math.cos(o.theta) * o.r; sy += cy + Math.sin(o.theta) * o.r; });
+    const rcx = sx / filtered.length, rcy = sy / filtered.length;
+
+    let pass2 = scan(rcx, rcy);
+    if (pass2.length < ANGLES * 0.35) pass2 = filtered;
+    pass2.sort((a, b) => a.r - b.r);
+    median = pass2[Math.floor(pass2.length / 2)].r;
+    filtered = pass2.filter(o => Math.abs(o.r - median) / median < 0.3);
+    const finalR = filtered.reduce((s, o) => s + o.r, 0) / filtered.length;
+    const confidence = filtered.length / ANGLES;
+
+    return { center: { x: rcx, y: rcy }, radius: finalR, confidence };
+  }
+
+  function startCoinDetection(workingPt){
+    appState = 'detecting';
+    detectOverlay.classList.remove('hidden'); detectOverlay.classList.add('flex');
+    document.getElementById('detect-overlay-text').textContent = 'peeling for edges…';
+    updateStepUI();
+    setTimeout(() => {
+      const result = detectCoinCircle(workingPt.x, workingPt.y);
+      detectOverlay.classList.add('hidden'); detectOverlay.classList.remove('flex');
+      if (!result || result.confidence < 0.35) {
+        coinCenter = null; coinRadiusBase = null;
+        appState = 'awaiting-coin';
+        stepText.innerHTML = `😅 Couldn't find a clean edge — tap more precisely on the coin center`;
+        render();
+        return;
+      }
+      coinCenter = result.center;
+      coinRadiusBase = result.radius;
+      coinConfidence = result.confidence;
+      fineTuneAdjust = 0;
+      fineSlider.value = 0;
+      fineWrap.classList.remove('hidden');
+      confidenceBadge.textContent = coinConfidence > 0.75 ? '🎯 locked on' : '👍 found it';
+      confidenceBadge.className = 'text-[10.5px] font-semibold ' + (coinConfidence > 0.75 ? 'text-leaf-700' : 'text-banana-700');
+      appState = 'awaiting-objA';
+      updateStepUI();
+      render();
+    }, 380);
+  }
+
+  // ================= TAP HANDLING =================
+  function toWorkingCoords(clientX, clientY){
+    const rect = stageCanvas.getBoundingClientRect();
+    const xCss = clientX - rect.left, yCss = clientY - rect.top;
+    const scaleX = workingCanvas.width / rect.width;
+    const scaleY = workingCanvas.height / rect.height;
+    return { x: xCss * scaleX, y: yCss * scaleY, cssX: xCss, cssY: yCss };
+  }
+
+  function showRipple(cssX, cssY){
+    const r = document.createElement('div');
+    r.className = 'ripple';
+    r.style.left = cssX + 'px';
+    r.style.top = cssY + 'px';
+    rippleLayer.appendChild(r);
+    setTimeout(() => r.remove(), 600);
+  }
+
+  function handleTap(clientX, clientY){
+    if (!workingCanvas || appState === 'detecting') return;
+    const wp = toWorkingCoords(clientX, clientY);
+    showRipple(wp.cssX, wp.cssY);
+    vibrate(8);
+
+    if (appState === 'awaiting-coin') {
+      startCoinDetection(wp);
+    } else if (appState === 'awaiting-refA') {
+      rawRefA = { x: wp.x, y: wp.y };
+      appState = 'awaiting-refB';
+      updateStepUI(); render();
+    } else if (appState === 'awaiting-refB') {
+      rawRefB = { x: wp.x, y: wp.y };
+      appState = 'awaiting-objA';
+      updateStepUI(); render();
+    } else if (appState === 'awaiting-objA') {
+      rawObjA = { x: wp.x, y: wp.y };
+      appState = 'awaiting-objB';
+      updateStepUI(); render();
+    } else if (appState === 'awaiting-objB') {
+      rawObjB = { x: wp.x, y: wp.y };
+      appState = 'done';
+      updateStepUI(); render();
+      celebrate();
+    } else if (appState === 'done') {
+      rawObjA = { x: wp.x, y: wp.y };
+      rawObjB = null;
+      appState = 'awaiting-objB';
+      updateStepUI(); render();
+    }
+  }
+
+  let touchStartPt = null, touchStartTime = 0, suppressClick = false;
+  stageCanvas.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    touchStartPt = { x: t.clientX, y: t.clientY };
+    touchStartTime = Date.now();
+  }, { passive: true });
+
+  stageCanvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+  }, { passive: false });
+
+  stageCanvas.addEventListener('touchend', (e) => {
+    if (!touchStartPt) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStartPt.x, dy = t.clientY - touchStartPt.y;
+    if (Math.hypot(dx, dy) < 14 && (Date.now() - touchStartTime) < 600) {
+      handleTap(t.clientX, t.clientY);
+    }
+    touchStartPt = null;
+    suppressClick = true;
+    setTimeout(() => { suppressClick = false; }, 400);
+    e.preventDefault();
+  }, { passive: false });
+
+  stageCanvas.addEventListener('click', (e) => {
+    if (suppressClick) return;
+    handleTap(e.clientX, e.clientY);
+  });
+
+  // ================= DRAWING & PAZHAM LINED-UP ICONS =================
+  function toDisplay(pt){
+    const rect = stageCanvas.getBoundingClientRect();
+    const scaleX = rect.width / workingCanvas.width;
+    const scaleY = rect.height / workingCanvas.height;
+    return { x: pt.x * scaleX, y: pt.y * scaleY };
+  }
+
+  function currentCoinRadius(){
+    if (!coinRadiusBase) return null;
+    return coinRadiusBase * (1 + fineTuneAdjust / 100);
+  }
+
+  function currentReferencePx(){
+    if (calibMethod === 'auto') {
+      const r = currentCoinRadius();
+      return r ? r * 2 : null;
+    }
+    if (rawRefA && rawRefB) return dist(rawRefA, rawRefB);
+    return null;
+  }
+
+  function render(){
+    if (!workingCanvas) return;
+    const w = stageCanvas.clientWidth, h = stageCanvas.clientHeight;
+    stageCtx.clearRect(0, 0, w, h);
+    stageCtx.drawImage(workingCanvas, 0, 0, w, h);
+
+    if (calibMethod === 'auto' && coinCenter) {
+      const c = toDisplay(coinCenter);
+      const rWork = currentCoinRadius();
+      const rDisp = rWork * (w / workingCanvas.width);
+      stageCtx.save();
+      stageCtx.strokeStyle = '#CFC7B4';
+      stageCtx.lineWidth = 3;
+      stageCtx.setLineDash([6, 5]);
+      stageCtx.beginPath();
+      stageCtx.arc(c.x, c.y, rDisp, 0, Math.PI * 2);
+      stageCtx.stroke();
+      stageCtx.setLineDash([]);
+      stageCtx.beginPath();
+      stageCtx.arc(c.x, c.y, 4, 0, Math.PI * 2);
+      stageCtx.fillStyle = '#231A10';
+      stageCtx.fill();
+      stageCtx.restore();
+    }
+
+    if (calibMethod === 'manual' && rawRefA) {
+      const a = toDisplay(rawRefA);
+      drawPoint(a, '#2F6B41');
+      if (rawRefB) {
+        const b = toDisplay(rawRefB);
+        stageCtx.save();
+        stageCtx.strokeStyle = '#2F6B41';
+        stageCtx.lineWidth = 4;
+        stageCtx.lineCap = 'round';
+        stageCtx.beginPath();
+        stageCtx.moveTo(a.x, a.y);
+        stageCtx.lineTo(b.x, b.y);
+        stageCtx.stroke();
+        stageCtx.restore();
+        drawPoint(b, '#2F6B41');
+      }
+    }
+
+    if (rawObjA) {
+      const a = toDisplay(rawObjA);
+      drawPoint(a, '#FF6B57');
+      let b = null;
+      if (rawObjB) {
+        b = toDisplay(projectForOrientation(rawObjA, rawObjB));
+      }
+      if (b) {
+        drawPazhamRuler(a, b);
+        drawPoint(b, '#FF6B57');
+      }
+    }
+
+    updateReading();
+  }
+
+  function drawPazhamRuler(p1, p2){
+    const refPx = currentReferencePx();
+    if (!refPx) return;
+    const pxPerCm = refPx / referenceLengthCm;
+    const varietyLenCm = VARIETIES[selectedVariety];
+    const displayPazhamLengthPx = varietyLenCm * pxPerCm * (stageCanvas.clientWidth / workingCanvas.width);
+
+    const totalDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    if (totalDist < 5) return;
+
+    const pazhamCount = totalDist / displayPazhamLengthPx;
+    const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+
+    stageCtx.save();
+    stageCtx.strokeStyle = '#FFC53D';
+    stageCtx.lineWidth = 3;
+    stageCtx.setLineDash([4, 4]);
+    stageCtx.beginPath();
+    stageCtx.moveTo(p1.x, p1.y);
+    stageCtx.lineTo(p2.x, p2.y);
+    stageCtx.stroke();
+    stageCtx.setLineDash([]);
+
+    stageCtx.font = `${Math.max(16, Math.min(36, displayPazhamLengthPx * 0.65))}px sans-serif`;
+    stageCtx.textAlign = 'center';
+    stageCtx.textBaseline = 'middle';
+
+    const numIcons = Math.max(1, Math.round(pazhamCount));
+    const stepDist = totalDist / numIcons;
+
+    for (let i = 0; i < numIcons; i++) {
+      const cx = p1.x + Math.cos(angle) * (i + 0.5) * stepDist;
+      const cy = p1.y + Math.sin(angle) * (i + 0.5) * stepDist;
+      stageCtx.save();
+      stageCtx.translate(cx, cy);
+      stageCtx.rotate(angle + Math.PI / 2);
+      stageCtx.fillText('🍌', 0, 0);
+      stageCtx.restore();
+    }
+    stageCtx.restore();
+  }
+
+  function drawPoint(p, color){
+    stageCtx.save();
+    stageCtx.beginPath();
+    stageCtx.arc(p.x, p.y, 9, 0, Math.PI * 2);
+    stageCtx.fillStyle = color;
+    stageCtx.fill();
+    stageCtx.lineWidth = 2.5;
+    stageCtx.strokeStyle = '#231A10';
+    stageCtx.stroke();
+    stageCtx.restore();
+  }
+
+  function projectForOrientation(a, b){
+    if (orientation === 'height') return { x: a.x, y: b.y };
+    return { x: b.x, y: a.y };
+  }
+
+  function dist(p1, p2){ return Math.hypot(p2.x - p1.x, p2.y - p1.y); }
+
+  // ================= MEASUREMENT MATH =================
+  const countEl = document.getElementById('reading-banana-count');
+  const nameEl = document.getElementById('reading-banana-name');
+  const noteEl = document.getElementById('reading-note');
+
+  function cap(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  function updateReading(){
+    const refPx = currentReferencePx();
+    const hasResult = !!(refPx && rawObjA && rawObjB);
+
+    if (hasResult) {
+      showSheet();
+    } else {
+      resultSheet.classList.remove('sheet-visible');
+      btnShowSheet.classList.add('hidden');
+    }
+
+    if (refPx && refPx < MIN_REF_PX) {
+      warnChip.textContent = `⚠️ your ${referenceName} looks tiny in this photo — move closer or use a bigger reference next time for a trustworthy reading.`;
+      warnChip.classList.remove('hidden');
+    } else {
+      warnChip.classList.add('hidden');
+    }
+
+    if (!hasResult) {
+      countEl.textContent = '—';
+      nameEl.textContent = cap(selectedVariety);
+      noteEl.textContent = !refPx ? `set up your ${referenceName} first` : 'tap two points on your object';
+      return;
+    }
+    const pxPerCm = refPx / referenceLengthCm;
+    const objPx = orientation === 'height'
+      ? Math.abs(rawObjB.y - rawObjA.y)
+      : Math.abs(rawObjB.x - rawObjA.x);
+
+    const lengthCm = objPx / pxPerCm;
+    const varietyLen = VARIETIES[selectedVariety];
+    const count = lengthCm / varietyLen;
+
+    const wasSame = countEl.textContent === count.toFixed(2);
+    countEl.textContent = count.toFixed(2);
+    nameEl.textContent = cap(selectedVariety) + (Math.abs(count - 1) < 0.005 ? ' pazham' : ' pazhams');
+    if (!wasSame) { countEl.classList.remove('pop'); void countEl.offsetWidth; countEl.classList.add('pop'); }
+
+    const others = Object.keys(VARIETIES)
+      .filter(v => v !== selectedVariety)
+      .map(v => `${(lengthCm / VARIETIES[v]).toFixed(1)} ${cap(v)}`)
+      .join('  ·  ');
+    noteEl.textContent = 'also: ' + others;
+
+    if (appState === 'done' && !loggedThisResult) {
+      loggedThisResult = true;
+      saveToLog(count, selectedVariety);
+      renderRecentLog();
+    }
+  }
+
+  // ================= BANANA CONFETTI CELEBRATION =================
+  function celebrate(){
+    const emojis = ['🍌','🍌','🍌','✨','🍌'];
+    const count = 22;
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement('div');
+      el.className = 'confetti-piece';
+      el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+      const startX = 20 + Math.random() * (window.innerWidth - 40);
+      el.style.left = startX + 'px';
+      el.style.animationDuration = (0.9 + Math.random() * 0.8) + 's';
+      el.style.animationDelay = (Math.random() * 0.2) + 's';
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 2200);
+    }
+  }
+
+})();
+</script>
+</body>
+</html>
