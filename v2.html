@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>BANANAMETER 🍌 measure anything in bananas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          banana:  { 100:'#FFF0C2', 300:'#FFE08A', 500:'#FFC53D', 600:'#F2A900', 700:'#C97F00' },
+          leaf:    { 900:'#132B1C', 700:'#1F4A2E', 500:'#2F6B41', 300:'#7BB489' },
+          coral:   { 500:'#FF6B57', 600:'#E44E39' },
+          coin:    { 400:'#CFC7B4', 600:'#948A72' },
+          cream:   '#FFF8E9',
+          ink:     '#231A10'
+        },
+        fontFamily: {
+          display: ['Fredoka', 'sans-serif'],
+          body: ['"Space Grotesk"', 'sans-serif']
+        },
+        boxShadow: {
+          hard: '4px 4px 0 0 #231A10',
+          hardsm: '3px 3px 0 0 #231A10',
+          hardlg: '6px 6px 0 0 #231A10'
+        }
+      }
+    }
+  };
+</script>
+<style>
+  html, body { background:#FFF8E9; overscroll-behavior:none; }
+  body { font-family:'Space Grotesk', sans-serif; color:#231A10; touch-action:manipulation; position:relative; }
+  .font-display { font-family:'Fredoka', sans-serif; }
+  #stage-canvas { touch-action:none; display:block; }
+  .screen{ display:none; } .screen.active{ display:flex; }
+  .hard { border:2.5px solid #231A10; box-shadow:4px 4px 0 0 #231A10; }
+  .press:active { transform: translate(3px,3px); box-shadow:1px 1px 0 0 #231A10; }
+  .press { transition: transform .08s ease, box-shadow .08s ease; }
+  .bg-dots {
+    background-image: radial-gradient(rgba(35,26,16,0.10) 1.4px, transparent 1.4px);
+    background-size: 16px 16px;
+  }
+  .blob { position:absolute; border-radius:50%; filter: blur(2px); opacity:.55; animation: floatBlob 7s ease-in-out infinite; pointer-events:none; }
+  @keyframes floatBlob { 0%,100%{ transform:translateY(0) rotate(0deg);} 50%{ transform:translateY(-16px) rotate(6deg);} }
+  @keyframes wiggle { 0%,100%{ transform:rotate(-9deg);} 50%{ transform:rotate(9deg);} }
+  .wiggle { animation: wiggle 2.2s ease-in-out infinite; transform-origin: 60% 70%; }
+  @keyframes pop { 0%{ transform:scale(.6); opacity:0; } 65%{ transform:scale(1.08); opacity:1;} 100%{ transform:scale(1);} }
+  .pop { animation: pop .38s cubic-bezier(.34,1.56,.64,1) both; }
+  @keyframes fall {
+    0% { transform: translateY(-10px) rotate(0deg); opacity:1; }
+    100% { transform: translateY(340px) rotate(400deg); opacity:0; }
+  }
+  .confetti-piece { position:fixed; top:0; font-size:22px; pointer-events:none; z-index:60; animation: fall linear forwards; }
+  @keyframes ripple { 0%{ transform:translate(-50%,-50%) scale(.2); opacity:.55;} 100%{ transform:translate(-50%,-50%) scale(2.4); opacity:0;} }
+  .ripple { position:absolute; width:40px; height:40px; border:3px solid #FFC53D; border-radius:50%; pointer-events:none; animation: ripple .55s ease-out forwards; }
+  @keyframes spin-slow { to { transform: rotate(360deg); } }
+  .spin-slow { animation: spin-slow 1.1s linear infinite; }
+  .sticker { transform: rotate(-1.5deg); }
+  .sticker-r { transform: rotate(1.5deg); }
+  input[type=range].fine { -webkit-appearance:none; appearance:none; height:8px; border-radius:999px; background:#231A10; }
+  input[type=range].fine::-webkit-slider-thumb { -webkit-appearance:none; width:24px; height:24px; border-radius:50%; background:#FFC53D; border:2.5px solid #231A10; cursor:pointer; }
+  input[type=range].fine::-moz-range-thumb { width:24px; height:24px; border-radius:50%; background:#FFC53D; border:2.5px solid #231A10; cursor:pointer; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<div class="blob w-40 h-40 bg-banana-300" style="top:-30px; right:-40px;"></div>
+<div class="blob w-32 h-32 bg-leaf-300" style="bottom:60px; left:-40px; animation-delay:1.5s;"></div>
+
+<div class="max-w-md mx-auto min-h-screen flex flex-col relative bg-dots">
+
+  <!-- ===================== HEADER ===================== -->
+  <header class="flex items-center justify-between px-5 pt-6 pb-3 relative z-10">
+    <div>
+      <h1 class="font-display font-700 text-[26px] leading-none tracking-tight text-ink" style="font-weight:700;">BANANA<span class="text-coral-500">METER</span></h1>
+      <p class="text-[11px] text-ink/50 mt-1 font-medium">the world's only banana-based tape measure 🍌</p>
+    </div>
+    <div class="w-11 h-11 rounded-full bg-banana-500 hard flex items-center justify-center text-xl shrink-0 wiggle">🍌</div>
+  </header>
+
+  <!-- ===================== SCREEN 1: START ===================== -->
+  <section id="screen-start" class="screen active flex-1 flex-col px-5 pb-8 relative z-10">
+    <div class="flex-1 flex flex-col justify-center">
+      <div class="inline-block bg-leaf-500 text-cream text-[11px] font-semibold px-3 py-1.5 rounded-full hard sticker w-fit mb-4">real coin. real science. sort of.</div>
+      <h2 class="font-display font-600 text-[38px] leading-[1.02] text-ink mb-4" style="font-weight:600;">How many<br>bananas long<br>is that thing?</h2>
+      <p class="text-sm text-ink/70 leading-relaxed mb-5 max-w-[34ch]">
+        Put a ₹1 coin next to your object, snap a photo, and tap the coin once. We auto-detect its edge — 2.193&nbsp;cm exactly — and convert your object into Njalipoovan, Palayamkodan, Robusta or Nendran bananas.
+      </p>
+
+      <div class="rounded-2xl hard sticker-r p-4 mb-6 bg-white">
+        <p class="text-[11px] text-ink/50 mb-2 font-semibold">🍌 the units, for the uninitiated</p>
+        <div class="grid grid-cols-2 gap-y-2.5 text-sm">
+          <div class="text-leaf-700 font-semibold">Njalipoovan</div><div class="text-right text-ink/60">10.0 cm</div>
+          <div class="text-leaf-700 font-semibold">Palayamkodan</div><div class="text-right text-ink/60">13.5 cm</div>
+          <div class="text-leaf-700 font-semibold">Robusta</div><div class="text-right text-ink/60">18.0 cm</div>
+          <div class="text-leaf-700 font-semibold">Nendran</div><div class="text-right text-ink/60">22.5 cm</div>
+        </div>
+      </div>
+    </div>
+
+    <button id="btn-start" class="press hard w-full bg-banana-500 text-ink rounded-full py-4 font-display font-600 text-[17px]" style="font-weight:600;">
+      Open camera →
+    </button>
+    <p id="start-error" class="text-xs text-coral-600 mt-3 text-center hidden font-medium"></p>
+  </section>
+
+  <!-- ===================== SCREEN 2: CAMERA ===================== -->
+  <section id="screen-camera" class="screen flex-1 flex-col relative z-10">
+    <div class="px-5 pb-3">
+      <p class="text-sm text-ink/70">Get the <b class="text-ink">₹1 coin</b> and your object in the same shot →</p>
+    </div>
+    <div class="relative mx-5 rounded-2xl overflow-hidden hard bg-leaf-900" style="aspect-ratio:3/4">
+      <video id="video" class="w-full h-full object-cover" playsinline muted autoplay></video>
+      <div id="camera-hint" class="absolute inset-x-0 top-3 flex justify-center pointer-events-none">
+        <span class="bg-ink text-cream text-[11px] px-3 py-1.5 rounded-full font-medium">coin + object, both in frame</span>
+      </div>
+      <div class="absolute inset-0 pointer-events-none" style="border:2px dashed rgba(255,197,61,0.55); margin:22px; border-radius:14px;"></div>
+    </div>
+    <div class="px-5 mt-5 flex items-center gap-3">
+      <button id="btn-back-to-start" class="press hard w-14 h-14 rounded-full bg-white flex items-center justify-center text-lg shrink-0" aria-label="Back">←</button>
+      <button id="btn-capture" class="press hard flex-1 bg-coral-500 text-cream rounded-full py-4 font-display font-600 text-[17px]" style="font-weight:600;">📸 Capture</button>
+    </div>
+    <label id="btn-upload-wrap" class="block text-center text-xs text-ink/50 underline mt-4 cursor-pointer">
+      camera being shy? choose a photo instead
+      <input id="file-upload" type="file" accept="image/*" capture="environment" class="hidden">
+    </label>
+    <div class="flex-1"></div>
+  </section>
+
+  <!-- ===================== SCREEN 3: MEASURE ===================== -->
+  <section id="screen-measure" class="screen flex-1 flex-col px-5 pb-6 relative z-10">
+
+    <!-- step badge -->
+    <div class="flex items-center gap-2 mb-3 mt-1">
+      <div class="flex gap-1" id="progress-dots">
+        <span class="step-dot text-base" data-step="coin">🪙</span>
+        <span class="step-dot text-base opacity-30" data-step="obj">📏</span>
+        <span class="step-dot text-base opacity-30" data-step="done">🎉</span>
+      </div>
+      <p id="step-text" class="text-[13px] font-medium text-ink flex-1">Tap the <b>center of the coin</b></p>
+    </div>
+
+    <div class="relative rounded-2xl overflow-hidden hard bg-leaf-900 mx-auto" id="stage-wrap">
+      <canvas id="stage-canvas"></canvas>
+      <div id="detect-overlay" class="absolute inset-0 hidden items-center justify-center bg-ink/55 flex-col gap-2">
+        <div class="w-10 h-10 rounded-full border-4 border-banana-500 border-t-transparent spin-slow"></div>
+        <p class="text-cream text-xs font-medium">peeling for edges…</p>
+      </div>
+      <div id="ripple-layer" class="absolute inset-0 pointer-events-none"></div>
+    </div>
+
+    <!-- coin fine-tune -->
+    <div id="finetune-wrap" class="mt-3 hidden">
+      <div class="flex items-center justify-between mb-1">
+        <p class="text-[11px] text-ink/50 font-medium">circle looks off? nudge it</p>
+        <p id="confidence-badge" class="text-[11px] font-semibold"></p>
+      </div>
+      <input id="finetune-slider" type="range" min="-25" max="25" value="0" class="fine w-full">
+    </div>
+
+    <!-- orientation toggle -->
+    <div class="mt-4">
+      <p class="text-[11px] text-ink/50 mb-1.5 font-medium">measuring the object's</p>
+      <div class="grid grid-cols-2 gap-2">
+        <button data-mode="height" class="mode-btn press hard rounded-xl py-2.5 text-sm font-display font-500 bg-ink text-cream" style="font-weight:500;">↕ Height</button>
+        <button data-mode="width" class="mode-btn press hard rounded-xl py-2.5 text-sm font-display font-500 bg-white text-ink" style="font-weight:500;">↔ Width</button>
+      </div>
+    </div>
+
+    <!-- reading -->
+    <div class="mt-4 rounded-2xl hard bg-ink text-cream p-5 relative overflow-hidden">
+      <div class="absolute -right-6 -top-6 text-7xl opacity-10 rotate-12">🍌</div>
+      <p class="text-[11px] text-cream/50 mb-1 font-medium">object length</p>
+      <p id="reading-cm" class="font-display text-3xl mb-3" style="font-weight:600;">— cm</p>
+      <div class="h-px bg-cream/15 mb-3"></div>
+      <p class="text-[11px] text-cream/50 mb-2 font-medium">in bananas</p>
+      <div class="flex items-end gap-2 mb-1">
+        <p id="reading-banana-count" class="font-display text-6xl leading-none" style="font-weight:700;">—</p>
+        <p id="reading-banana-name" class="text-lg pb-1 text-banana-300 font-medium">Nendran</p>
+      </div>
+      <p id="reading-note" class="text-[11px] text-cream/40 mt-2 h-8 leading-snug"></p>
+    </div>
+
+    <!-- variety chips -->
+    <div class="grid grid-cols-4 gap-2 mt-3" id="variety-chips">
+      <button data-variety="njalipoovan" data-len="10.0" class="variety-btn press hard rounded-xl py-2 text-[10.5px] font-semibold bg-white text-ink">Njali­poovan</button>
+      <button data-variety="palayamkodan" data-len="13.5" class="variety-btn press hard rounded-xl py-2 text-[10.5px] font-semibold bg-white text-ink">Palayam­kodan</button>
+      <button data-variety="robusta" data-len="18.0" class="variety-btn press hard rounded-xl py-2 text-[10.5px] font-semibold bg-white text-ink">Robusta</button>
+      <button data-variety="nendran" data-len="22.5" class="variety-btn press hard rounded-xl py-2 text-[10.5px] font-semibold bg-banana-500 text-ink">Nendran</button>
+    </div>
+
+    <div class="flex items-center gap-3 mt-4">
+      <button id="btn-redo-obj" class="press hard flex-1 bg-white rounded-full py-3 font-semibold text-sm text-ink">↺ Redo object</button>
+      <button id="btn-redo-coin" class="press hard flex-1 bg-white rounded-full py-3 font-semibold text-sm text-ink">🪙 Recalibrate</button>
+    </div>
+    <button id="btn-retake" class="press hard w-full bg-cream rounded-full py-3 font-semibold text-sm text-ink mt-3">📷 Retake photo</button>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- constants ----------
+  const COIN_DIAMETER_CM = 2.193;
+  const VARIETIES = { njalipoovan:10.0, palayamkodan:13.5, robusta:18.0, nendran:22.5 };
+  const WORKING_MAX_DIM = 900;
+
+  // ---------- state ----------
+  let stream = null;
+  let frozenSource = null;     // native-res captured canvas
+  let workingCanvas = null;    // downscaled canvas used for detection + display
+  let grayData = null;         // {gray,w,h}
+  let orientation = 'height';
+  let selectedVariety = 'nendran';
+
+  let appState = 'awaiting-coin'; // awaiting-coin | detecting | awaiting-objA | awaiting-objB | done
+  let coinCenter = null, coinRadiusBase = null, coinConfidence = 0;
+  let fineTuneAdjust = 0; // percent
+  let rawObjA = null, rawObjB = null;
+
+  // ---------- element refs ----------
+  const screens = {
+    start: document.getElementById('screen-start'),
+    camera: document.getElementById('screen-camera'),
+    measure: document.getElementById('screen-measure')
+  };
+  const video = document.getElementById('video');
+  const stageWrap = document.getElementById('stage-wrap');
+  const stageCanvas = document.getElementById('stage-canvas');
+  const stageCtx = stageCanvas.getContext('2d');
+  const startError = document.getElementById('start-error');
+  const fileInput = document.getElementById('file-upload');
+  const detectOverlay = document.getElementById('detect-overlay');
+  const rippleLayer = document.getElementById('ripple-layer');
+  const stepText = document.getElementById('step-text');
+  const fineWrap = document.getElementById('finetune-wrap');
+  const fineSlider = document.getElementById('finetune-slider');
+  const confidenceBadge = document.getElementById('confidence-badge');
+
+  function showScreen(name){
+    Object.values(screens).forEach(s => s.classList.remove('active'));
+    screens[name].classList.add('active');
+  }
+
+  // ================= SCREEN: START =================
+  document.getElementById('btn-start').addEventListener('click', async () => {
+    startError.classList.add('hidden');
+    showScreen('camera');
+    const ok = await startCamera();
+    if (!ok) setCameraHint('camera unavailable — use "choose a photo" below', true);
+  });
+
+  // ================= CAMERA =================
+  function setCameraHint(text, warn){
+    document.getElementById('camera-hint').innerHTML =
+      `<span class="${warn ? 'bg-coral-600' : 'bg-ink'} text-cream text-[11px] px-3 py-1.5 rounded-full font-medium">${text}</span>`;
+  }
+
+  async function startCamera(){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
+    const attempts = [
+      { video: { facingMode: { exact: 'environment' } }, audio: false },
+      { video: { facingMode: 'environment' }, audio: false },
+      { video: true, audio: false }
+    ];
+    for (const constraints of attempts) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = stream;
+        await video.play();
+        return true;
+      } catch (e) { /* try next */ }
+    }
+    return false;
+  }
+
+  function stopCamera(){
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  }
+
+  document.getElementById('btn-back-to-start').addEventListener('click', () => {
+    stopCamera();
+    showScreen('start');
+  });
+
+  document.getElementById('btn-capture').addEventListener('click', () => {
+    if (!stream || !video.videoWidth) return;
+    const off = document.createElement('canvas');
+    off.width = video.videoWidth;
+    off.height = video.videoHeight;
+    off.getContext('2d').drawImage(video, 0, 0);
+    frozenSource = off;
+    stopCamera();
+    enterMeasureScreen();
+  });
+
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => {
+      const off = document.createElement('canvas');
+      off.width = img.naturalWidth;
+      off.height = img.naturalHeight;
+      off.getContext('2d').drawImage(img, 0, 0);
+      frozenSource = off;
+      stopCamera();
+      enterMeasureScreen();
+    };
+    img.src = URL.createObjectURL(file);
+  });
+
+  // ================= SCREEN: MEASURE — SETUP =================
+  function enterMeasureScreen(){
+    showScreen('measure');
+    buildWorking();
+    sizeStageCanvas();
+    resetAll();
+    window.addEventListener('resize', onResize);
+  }
+
+  function buildWorking(){
+    const scale = Math.min(1, WORKING_MAX_DIM / Math.max(frozenSource.width, frozenSource.height));
+    const w = Math.max(1, Math.round(frozenSource.width * scale));
+    const h = Math.max(1, Math.round(frozenSource.height * scale));
+    workingCanvas = document.createElement('canvas');
+    workingCanvas.width = w; workingCanvas.height = h;
+    workingCanvas.getContext('2d').drawImage(frozenSource, 0, 0, w, h);
+    grayData = buildGray(workingCanvas);
+  }
+
+  function buildGray(canvas){
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    const data = ctx.getImageData(0, 0, w, h).data;
+    const gray = new Float32Array(w * h);
+    for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+      gray[p] = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+    }
+    return { gray, w, h };
+  }
+
+  function onResize(){
+    if (screens.measure.classList.contains('active')) {
+      sizeStageCanvas();
+      render();
+    }
+  }
+
+  function sizeStageCanvas(){
+    const dpr = window.devicePixelRatio || 1;
+    const maxW = Math.min(448, window.innerWidth) - 40;
+    const ratio = workingCanvas.height / workingCanvas.width;
+    let cssW = maxW, cssH = cssW * ratio;
+    const maxH = window.innerHeight * 0.48;
+    if (cssH > maxH) { cssH = maxH; cssW = cssH / ratio; }
+    stageWrap.style.width = cssW + 'px';
+    stageWrap.style.height = cssH + 'px';
+    stageCanvas.width = cssW * dpr;
+    stageCanvas.height = cssH * dpr;
+    stageCanvas.style.width = cssW + 'px';
+    stageCanvas.style.height = cssH + 'px';
+    stageCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function resetAll(){
+    appState = 'awaiting-coin';
+    coinCenter = null; coinRadiusBase = null; coinConfidence = 0; fineTuneAdjust = 0;
+    rawObjA = null; rawObjB = null;
+    fineSlider.value = 0;
+    fineWrap.classList.add('hidden');
+    updateStepUI();
+    render();
+  }
+
+  document.getElementById('btn-retake').addEventListener('click', async () => {
+    frozenSource = null;
+    window.removeEventListener('resize', onResize);
+    showScreen('camera');
+    setCameraHint('coin + object, both in frame', false);
+    const ok = await startCamera();
+    if (!ok) setCameraHint('camera unavailable — use "choose a photo" below', true);
+  });
+
+  document.getElementById('btn-redo-coin').addEventListener('click', () => {
+    appState = 'awaiting-coin';
+    coinCenter = null; coinRadiusBase = null; fineTuneAdjust = 0; fineSlider.value = 0;
+    fineWrap.classList.add('hidden');
+    rawObjA = null; rawObjB = null;
+    updateStepUI(); render();
+  });
+
+  document.getElementById('btn-redo-obj').addEventListener('click', () => {
+    if (!coinCenter) return;
+    appState = 'awaiting-objA';
+    rawObjA = null; rawObjB = null;
+    updateStepUI(); render();
+  });
+
+  fineSlider.addEventListener('input', () => {
+    fineTuneAdjust = parseFloat(fineSlider.value);
+    render();
+  });
+
+  // ---- orientation toggle ----
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      orientation = btn.dataset.mode;
+      document.querySelectorAll('.mode-btn').forEach(b => {
+        const active = b === btn;
+        b.classList.toggle('bg-ink', active);
+        b.classList.toggle('text-cream', active);
+        b.classList.toggle('bg-white', !active);
+        b.classList.toggle('text-ink', !active);
+      });
+      render();
+    });
+  });
+
+  // ---- variety chips ----
+  document.querySelectorAll('.variety-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedVariety = btn.dataset.variety;
+      document.querySelectorAll('.variety-btn').forEach(b => {
+        b.classList.toggle('bg-banana-500', b === btn);
+        b.classList.toggle('bg-white', b !== btn);
+      });
+      updateReading();
+    });
+  });
+
+  // ================= STEP UI =================
+  function updateStepUI(){
+    const dots = document.querySelectorAll('.step-dot');
+    dots.forEach(d => d.classList.add('opacity-30'));
+    if (appState === 'awaiting-coin' || appState === 'detecting') {
+      dots[0].classList.remove('opacity-30');
+      stepText.innerHTML = 'Tap the <b>center of the coin</b>';
+    } else if (appState === 'awaiting-objA') {
+      dots[1].classList.remove('opacity-30');
+      stepText.innerHTML = `Tap the <b>${orientation === 'height' ? 'top' : 'left edge'}</b> of your object`;
+    } else if (appState === 'awaiting-objB') {
+      dots[1].classList.remove('opacity-30');
+      stepText.innerHTML = `Now tap the <b>${orientation === 'height' ? 'bottom' : 'right edge'}</b>`;
+    } else if (appState === 'done') {
+      dots[0].classList.remove('opacity-30');
+      dots[1].classList.remove('opacity-30');
+      dots[2].classList.remove('opacity-30');
+      stepText.innerHTML = `Boom 🎉 tap the photo again to <b>re-measure</b>`;
+    }
+  }
+
+  // ================= COIN DETECTION =================
+  function detectCoinCircle(cx, cy){
+    const { gray, w, h } = grayData;
+    function sample(x, y){
+      x = Math.max(0, Math.min(w - 1, Math.round(x)));
+      y = Math.max(0, Math.min(h - 1, Math.round(y)));
+      return gray[y * w + x];
+    }
+    const ANGLES = 40;
+    const minR = Math.max(6, Math.round(Math.min(w, h) * 0.012));
+    const maxR = Math.round(Math.min(w, h) * 0.28);
+    function scan(cx, cy){
+      const found = [];
+      for (let a = 0; a < ANGLES; a++) {
+        const theta = (a / ANGLES) * Math.PI * 2;
+        const dx = Math.cos(theta), dy = Math.sin(theta);
+        let bestR = -1, bestGrad = 0;
+        for (let r = minR; r <= maxR; r++) {
+          const val = sample(cx + dx * r, cy + dy * r);
+          const before = sample(cx + dx * (r - 3), cy + dy * (r - 3));
+          const grad = Math.abs(val - before);
+          if (grad > bestGrad) { bestGrad = grad; bestR = r; }
+        }
+        if (bestR > 0 && bestGrad > 10) found.push({ r: bestR, theta, g: bestGrad });
+      }
+      return found;
+    }
+
+    let pass1 = scan(cx, cy);
+    if (pass1.length < ANGLES * 0.35) return null;
+    pass1.sort((a, b) => a.r - b.r);
+    let median = pass1[Math.floor(pass1.length / 2)].r;
+    let filtered = pass1.filter(o => Math.abs(o.r - median) / median < 0.35);
+    // refine center as centroid of edge points, then rescan once
+    let sx = 0, sy = 0;
+    filtered.forEach(o => { sx += cx + Math.cos(o.theta) * o.r; sy += cy + Math.sin(o.theta) * o.r; });
+    const rcx = sx / filtered.length, rcy = sy / filtered.length;
+
+    let pass2 = scan(rcx, rcy);
+    if (pass2.length < ANGLES * 0.35) pass2 = filtered;
+    pass2.sort((a, b) => a.r - b.r);
+    median = pass2[Math.floor(pass2.length / 2)].r;
+    filtered = pass2.filter(o => Math.abs(o.r - median) / median < 0.3);
+    const finalR = filtered.reduce((s, o) => s + o.r, 0) / filtered.length;
+    const confidence = filtered.length / ANGLES;
+
+    return { center: { x: rcx, y: rcy }, radius: finalR, confidence };
+  }
+
+  function startCoinDetection(workingPt){
+    appState = 'detecting';
+    detectOverlay.classList.remove('hidden');
+    detectOverlay.classList.add('flex');
+    updateStepUI();
+    setTimeout(() => {
+      const result = detectCoinCircle(workingPt.x, workingPt.y);
+      detectOverlay.classList.add('hidden');
+      detectOverlay.classList.remove('flex');
+      if (!result || result.confidence < 0.35) {
+        coinCenter = null; coinRadiusBase = null;
+        appState = 'awaiting-coin';
+        stepText.innerHTML = `😅 Couldn't find a clean edge — tap more precisely on the coin's center`;
+        render();
+        return;
+      }
+      coinCenter = result.center;
+      coinRadiusBase = result.radius;
+      coinConfidence = result.confidence;
+      fineTuneAdjust = 0;
+      fineSlider.value = 0;
+      fineWrap.classList.remove('hidden');
+      confidenceBadge.textContent = coinConfidence > 0.75 ? '🎯 locked on' : '👍 found it';
+      confidenceBadge.className = 'text-[11px] font-semibold ' + (coinConfidence > 0.75 ? 'text-leaf-700' : 'text-banana-700');
+      appState = 'awaiting-objA';
+      updateStepUI();
+      render();
+    }, 380);
+  }
+
+  // ================= TAP HANDLING =================
+  function toWorkingCoords(clientX, clientY){
+    const rect = stageCanvas.getBoundingClientRect();
+    const xCss = clientX - rect.left, yCss = clientY - rect.top;
+    const scaleX = workingCanvas.width / rect.width;
+    const scaleY = workingCanvas.height / rect.height;
+    return { x: xCss * scaleX, y: yCss * scaleY, cssX: xCss, cssY: yCss };
+  }
+
+  function showRipple(cssX, cssY){
+    const r = document.createElement('div');
+    r.className = 'ripple';
+    r.style.left = cssX + 'px';
+    r.style.top = cssY + 'px';
+    rippleLayer.appendChild(r);
+    setTimeout(() => r.remove(), 600);
+  }
+
+  function handleTap(clientX, clientY){
+    if (!workingCanvas || appState === 'detecting') return;
+    const wp = toWorkingCoords(clientX, clientY);
+    showRipple(wp.cssX, wp.cssY);
+
+    if (appState === 'awaiting-coin') {
+      startCoinDetection(wp);
+    } else if (appState === 'awaiting-objA') {
+      rawObjA = { x: wp.x, y: wp.y };
+      appState = 'awaiting-objB';
+      updateStepUI(); render();
+    } else if (appState === 'awaiting-objB') {
+      rawObjB = { x: wp.x, y: wp.y };
+      appState = 'done';
+      updateStepUI(); render();
+      celebrate();
+    } else if (appState === 'done') {
+      rawObjA = { x: wp.x, y: wp.y };
+      rawObjB = null;
+      appState = 'awaiting-objB';
+      updateStepUI(); render();
+    }
+  }
+
+  let touchStartPt = null, touchStartTime = 0, suppressClick = false;
+  stageCanvas.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    touchStartPt = { x: t.clientX, y: t.clientY };
+    touchStartTime = Date.now();
+  }, { passive: true });
+
+  stageCanvas.addEventListener('touchmove', (e) => {
+    // no dragging behavior — just prevent page scroll while interacting with the stage
+    e.preventDefault();
+  }, { passive: false });
+
+  stageCanvas.addEventListener('touchend', (e) => {
+    if (!touchStartPt) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStartPt.x, dy = t.clientY - touchStartPt.y;
+    if (Math.hypot(dx, dy) < 14 && (Date.now() - touchStartTime) < 600) {
+      handleTap(t.clientX, t.clientY);
+    }
+    touchStartPt = null;
+    suppressClick = true;
+    setTimeout(() => { suppressClick = false; }, 400);
+    e.preventDefault();
+  }, { passive: false });
+
+  stageCanvas.addEventListener('click', (e) => {
+    if (suppressClick) return;
+    handleTap(e.clientX, e.clientY);
+  });
+
+  // ================= DRAWING =================
+  function toDisplay(pt){
+    const rect = stageCanvas.getBoundingClientRect();
+    const scaleX = rect.width / workingCanvas.width;
+    const scaleY = rect.height / workingCanvas.height;
+    return { x: pt.x * scaleX, y: pt.y * scaleY };
+  }
+
+  function currentCoinRadius(){
+    if (!coinRadiusBase) return null;
+    return coinRadiusBase * (1 + fineTuneAdjust / 100);
+  }
+
+  function render(){
+    if (!workingCanvas) return;
+    const w = stageCanvas.clientWidth, h = stageCanvas.clientHeight;
+    stageCtx.clearRect(0, 0, w, h);
+    stageCtx.drawImage(workingCanvas, 0, 0, w, h);
+
+    // coin overlay
+    if (coinCenter) {
+      const c = toDisplay(coinCenter);
+      const rWork = currentCoinRadius();
+      const rDisp = rWork * (w / workingCanvas.width);
+      stageCtx.save();
+      stageCtx.strokeStyle = '#CFC7B4';
+      stageCtx.lineWidth = 3;
+      stageCtx.setLineDash([6, 5]);
+      stageCtx.beginPath();
+      stageCtx.arc(c.x, c.y, rDisp, 0, Math.PI * 2);
+      stageCtx.stroke();
+      stageCtx.setLineDash([]);
+      stageCtx.beginPath();
+      stageCtx.arc(c.x, c.y, 4, 0, Math.PI * 2);
+      stageCtx.fillStyle = '#231A10';
+      stageCtx.fill();
+      stageCtx.restore();
+    }
+
+    // object overlay
+    if (rawObjA) {
+      const a = toDisplay(rawObjA);
+      drawPoint(a, '#FF6B57');
+      let b = null;
+      if (rawObjB) {
+        b = toDisplay(projectForOrientation(rawObjA, rawObjB));
+      }
+      if (b) {
+        stageCtx.save();
+        stageCtx.strokeStyle = '#FFC53D';
+        stageCtx.lineWidth = 4;
+        stageCtx.lineCap = 'round';
+        stageCtx.beginPath();
+        stageCtx.moveTo(a.x, a.y);
+        stageCtx.lineTo(b.x, b.y);
+        stageCtx.stroke();
+        stageCtx.restore();
+        drawPoint(b, '#FF6B57');
+      }
+    }
+
+    updateReading();
+  }
+
+  function drawPoint(p, color){
+    stageCtx.save();
+    stageCtx.beginPath();
+    stageCtx.arc(p.x, p.y, 9, 0, Math.PI * 2);
+    stageCtx.fillStyle = color;
+    stageCtx.fill();
+    stageCtx.lineWidth = 2.5;
+    stageCtx.strokeStyle = '#231A10';
+    stageCtx.stroke();
+    stageCtx.restore();
+  }
+
+  function projectForOrientation(a, b){
+    if (orientation === 'height') return { x: a.x, y: b.y };
+    return { x: b.x, y: a.y };
+  }
+
+  function dist(p1, p2){ return Math.hypot(p2.x - p1.x, p2.y - p1.y); }
+
+  // ================= MEASUREMENT MATH =================
+  const cmEl = document.getElementById('reading-cm');
+  const countEl = document.getElementById('reading-banana-count');
+  const nameEl = document.getElementById('reading-banana-name');
+  const noteEl = document.getElementById('reading-note');
+
+  function cap(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  function updateReading(){
+    const rWork = currentCoinRadius();
+    if (!rWork || !rawObjA || !rawObjB) {
+      cmEl.textContent = '— cm';
+      countEl.textContent = '—';
+      nameEl.textContent = cap(selectedVariety);
+      noteEl.textContent = !rWork ? 'tap the coin to calibrate first' : 'tap two points on your object';
+      return;
+    }
+    const pxPerCm = (rWork * 2) / COIN_DIAMETER_CM;
+    const objPx = orientation === 'height'
+      ? Math.abs(rawObjB.y - rawObjA.y)
+      : Math.abs(rawObjB.x - rawObjA.x);
+
+    const lengthCm = objPx / pxPerCm;
+    const varietyLen = VARIETIES[selectedVariety];
+    const count = lengthCm / varietyLen;
+
+    cmEl.textContent = lengthCm.toFixed(1) + ' cm';
+    const wasSame = countEl.textContent === count.toFixed(2);
+    countEl.textContent = count.toFixed(2);
+    nameEl.textContent = cap(selectedVariety) + (Math.abs(count - 1) < 0.005 ? ' banana' : ' bananas');
+    if (!wasSame) { countEl.classList.remove('pop'); void countEl.offsetWidth; countEl.classList.add('pop'); }
+
+    const others = Object.keys(VARIETIES)
+      .filter(v => v !== selectedVariety)
+      .map(v => `${(lengthCm / VARIETIES[v]).toFixed(1)} ${cap(v)}`)
+      .join('  ·  ');
+    noteEl.textContent = 'also: ' + others;
+  }
+
+  // ================= CELEBRATION =================
+  function celebrate(){
+    const emojis = ['🍌','🍌','🍌','🎉','🍌'];
+    const count = 16;
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement('div');
+      el.className = 'confetti-piece';
+      el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+      const startX = 20 + Math.random() * (window.innerWidth - 40);
+      el.style.left = startX + 'px';
+      el.style.animationDuration = (0.9 + Math.random() * 0.7) + 's';
+      el.style.animationDelay = (Math.random() * 0.15) + 's';
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 2000);
+    }
+  }
+
+})();
+</script>
+</body>
+</html>
