@@ -53,45 +53,8 @@ For Software:
 ![Fun Facts](p1%20%287%29.jpeg)
 
 # Diagrams
-+-----------------------------------------------------------------------+
-|                            1. MEDIA INPUT                             |
-|  • HTML5 Camera Stream (getUserMedia) OR Image File Upload            |
-+-----------------------------------┬-----------------------------------+
-                                    |
-                                    v
-+-----------------------------------------------------------------------+
-|                       2. SCALE CALIBRATION                            |
-|  • Auto-Detect ₹1 Coin (Radial Edge Detection)                        |
-|  • OR Manual 2-Point Tap (Card / Paper / Custom Size)                 |
-|                                                                       |
-|  ➔ Derives Scale Ratio: pxPerCm = Pixel Length / Real Length (cm)     |
-+-----------------------------------┬-----------------------------------+
-                                    |
-                                    v
-+-----------------------------------------------------------------------+
-|                      3. OBJECT MEASUREMENT                            |
-|  • User taps Start & End points of target object                      |
-|                                                                       |
-|  ➔ Calculates Object Size: cm = Object Pixels / pxPerCm               |
-+-----------------------------------┬-----------------------------------+
-                                    |
-                                    v
-+-----------------------------------------------------------------------+
-|                     4. BANANA UNIT MAPPING                            |
-|  • Divides size (cm) by chosen variety unit size:                     |
-|    - Njalipoovan  (10.0 cm)                                           |
-|    - Palayamkodan (11.5 cm)                                           |
-|    - Robusta      (18.5 cm)                                           |
-|    - Nendran      (22.0 cm)                                           |
-+-----------------------------------┬-----------------------------------+
-                                    |
-                                    v
-+-----------------------------------------------------------------------+
-|                        5. OUTPUT & EXPORT                             |
-|  • Overlay measurement vector with repeating banana visuals          |
-|  • Show total count in bottom results sheet                           |
-|  • Generate downloadable annotated image canvas                       |
-+-----------------------------------------------------------------------+
+
+ 
 
 ### Project Demo
 # Video
