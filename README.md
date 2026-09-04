@@ -53,8 +53,7 @@ For Software:
 ![Fun Facts](p1%20%287%29.jpeg)
 
 # Diagrams
-
- 
+![Architecture Diagram](architecture.png) 
 
 ### Project Demo
 # Video
