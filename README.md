@@ -57,16 +57,11 @@ For Software:
 
 ### Project Demo
 # Video
-[Add your demo video link here]
-*Explain what the video demonstrates*
-
-# Additional Demos
-[Add any extra demo materials/links]
+(https://drive.google.com/drive/folders/1A-YapulC_3kezQ_sBe5TUnI3U-EI63di?usp=sharing)
 
 ## Team Contributions
-- [Name 1]: [Specific contributions]
-- [Name 2]: [Specific contributions]
-- [Name 3]: [Specific contributions]
+- Adila Navas
+- Ahlam Anvarlal
 
 ---
 Made with ❤️ at TinkerHub Useless Projects 
