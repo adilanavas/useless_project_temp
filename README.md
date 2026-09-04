@@ -34,11 +34,7 @@ For Software:
 
 ### Implementation
 For Software:
-# Installation
-[commands]
-
-# Run
-[commands]
+Pazham Meter is a frontend-only web application hosted on GitHub, so no additional package installation is required. The project can be run directly by opening the index.html file in a browser, or through a local development server for better camera support.
 
 ### Project Documentation
 For Software:
@@ -57,8 +53,45 @@ For Software:
 ![Fun Facts](p1%20%287%29.jpeg)
 
 # Diagrams
-![Workflow](Add your workflow/architecture diagram here)
-*Add caption explaining your workflow*
++-----------------------------------------------------------------------+
+|                            1. MEDIA INPUT                             |
+|  • HTML5 Camera Stream (getUserMedia) OR Image File Upload            |
++-----------------------------------┬-----------------------------------+
+                                    |
+                                    v
++-----------------------------------------------------------------------+
+|                       2. SCALE CALIBRATION                            |
+|  • Auto-Detect ₹1 Coin (Radial Edge Detection)                        |
+|  • OR Manual 2-Point Tap (Card / Paper / Custom Size)                 |
+|                                                                       |
+|  ➔ Derives Scale Ratio: pxPerCm = Pixel Length / Real Length (cm)     |
++-----------------------------------┬-----------------------------------+
+                                    |
+                                    v
++-----------------------------------------------------------------------+
+|                      3. OBJECT MEASUREMENT                            |
+|  • User taps Start & End points of target object                      |
+|                                                                       |
+|  ➔ Calculates Object Size: cm = Object Pixels / pxPerCm               |
++-----------------------------------┬-----------------------------------+
+                                    |
+                                    v
++-----------------------------------------------------------------------+
+|                     4. BANANA UNIT MAPPING                            |
+|  • Divides size (cm) by chosen variety unit size:                     |
+|    - Njalipoovan  (10.0 cm)                                           |
+|    - Palayamkodan (11.5 cm)                                           |
+|    - Robusta      (18.5 cm)                                           |
+|    - Nendran      (22.0 cm)                                           |
++-----------------------------------┬-----------------------------------+
+                                    |
+                                    v
++-----------------------------------------------------------------------+
+|                        5. OUTPUT & EXPORT                             |
+|  • Overlay measurement vector with repeating banana visuals          |
+|  • Show total count in bottom results sheet                           |
+|  • Generate downloadable annotated image canvas                       |
++-----------------------------------------------------------------------+
 
 ### Project Demo
 # Video
